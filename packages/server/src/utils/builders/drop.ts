@@ -74,7 +74,7 @@ export const unzipDrop = async (zipFile: File, application: Application) => {
 						);
 						await uploadFileToServer(sftp, entry.getData(), fullPath);
 					} catch (err) {
-						console.error(`Error uploading file ${fullPath}:`, err);
+						console.error("Error uploading file:", fullPath, err);
 						throw err;
 					}
 				}
@@ -125,7 +125,7 @@ const uploadFileToServer = (
 	return new Promise((resolve, reject) => {
 		sftp.writeFile(remotePath, data, (err) => {
 			if (err) {
-				console.error(`SFTP write error for ${remotePath}:`, err);
+				console.error("SFTP write error for remote path:", remotePath, err);
 				return reject(err);
 			}
 			resolve();
