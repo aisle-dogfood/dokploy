@@ -103,7 +103,7 @@ export async function fetchTemplateFiles(
 
 		return { config, dockerCompose };
 	} catch (error) {
-		console.error(`Error fetching template ${templateId}:`, error);
+		console.error("Error fetching template %s:", templateId, error);
 		throw error;
 	}
 }
