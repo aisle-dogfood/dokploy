@@ -9,7 +9,7 @@ export const recreateDirectory = async (pathFolder: string): Promise<void> => {
 		await removeDirectoryIfExistsContent(pathFolder);
 		await fsPromises.mkdir(pathFolder, { recursive: true });
 	} catch (error) {
-		console.error(`Error recreating directory '${pathFolder}':`, error);
+		console.error("Error recreating directory", { pathFolder, error });
 	}
 };
 
@@ -23,7 +23,7 @@ export const recreateDirectoryRemote = async (
 			`rm -rf ${pathFolder}; mkdir -p ${pathFolder}`,
 		);
 	} catch (error) {
-		console.error(`Error recreating directory '${pathFolder}':`, error);
+		console.error("Error recreating directory", { pathFolder, error });
 	}
 };
 
