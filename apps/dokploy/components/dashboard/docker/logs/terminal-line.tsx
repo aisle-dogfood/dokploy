@@ -18,6 +18,18 @@ interface LogLineProps {
 }
 
 const fancyAnsi = new FancyAnsi();
+const HIGHLIGHT_START_TOKEN = "﷐DOKPLOY_HIGHLIGHT_START﷐";
+const HIGHLIGHT_END_TOKEN = "﷑DOKPLOY_HIGHLIGHT_END﷑";
+
+const escapeHtml = (value: string) =>
+	value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;");
+
+const renderSafeAnsiHtml = (value: string) => fancyAnsi.toHtml(escapeHtml(value));
 
 export function TerminalLine({ log, noTimestamp, searchTerm }: LogLineProps) {
 	const { timestamp, message, rawTimestamp } = log;
@@ -40,20 +52,23 @@ export function TerminalLine({ log, noTimestamp, searchTerm }: LogLineProps) {
 				<span
 					className="transition-colors"
 					dangerouslySetInnerHTML={{
-						__html: fancyAnsi.toHtml(text),
+						__html: renderSafeAnsiHtml(text),
 					}}
 				/>
 			);
 		}
 
-		const htmlContent = fancyAnsi.toHtml(text);
 		const searchRegex = new RegExp(`(${escapeRegExp(term)})`, "gi");
-
-		const modifiedContent = htmlContent.replace(
+		const highlightedText = text.replace(
 			searchRegex,
-			(match) =>
-				`<span class="bg-orange-200/80 dark:bg-orange-900/80 font-bold">${match}</span>`,
+			(match) => `${HIGHLIGHT_START_TOKEN}${match}${HIGHLIGHT_END_TOKEN}`,
 		);
+		const modifiedContent = renderSafeAnsiHtml(highlightedText)
+			.replaceAll(
+				HIGHLIGHT_START_TOKEN,
+				'<span class="bg-orange-200/80 dark:bg-orange-900/80 font-bold">',
+			)
+			.replaceAll(HIGHLIGHT_END_TOKEN, "</span>");
 
 		return (
 			<span
