@@ -78,7 +78,10 @@ export const checkUserRepositoryPermissions = async (
 	} catch (error) {
 		// If user is not a collaborator, GitHub API returns 404
 		console.warn(
-			`User ${username} is not a collaborator of ${owner}/${repo}:`,
+			"User %s is not a collaborator of %s/%s:",
+			username,
+			owner,
+			repo,
 			error,
 		);
 		return {
