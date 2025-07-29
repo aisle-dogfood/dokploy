@@ -59,7 +59,8 @@ export const deleteSchedule = async (scheduleId: string) => {
 	const { SCHEDULES_PATH } = paths(!!serverId);
 
 	const fullPath = path.join(SCHEDULES_PATH, schedule?.appName || "");
-	const command = `rm -rf ${fullPath}`;
+	const sanitizedFullPath = sanitizeShellArg(fullPath);
+	const command = `rm -rf ${sanitizedFullPath}`;
 	if (serverId) {
 		await execAsyncRemote(serverId, command);
 	} else {
@@ -109,18 +110,22 @@ export const updateSchedule = async (
 const handleScript = async (schedule: Schedule) => {
 	const { SCHEDULES_PATH } = paths(!!schedule?.serverId);
 	const fullPath = path.join(SCHEDULES_PATH, schedule?.appName || "");
-
+	const sanitizedFullPath = sanitizeShellArg(fullPath);
+	const sanitizedScriptShPath = sanitizeShellArg(`${fullPath}/script.sh`);
+	
 	// Add PID and Schedule ID echo by default to all scripts
 	const scriptWithPid = `echo "PID: $$ | Schedule ID: ${schedule.scheduleId}"
 ${schedule?.script || ""}`;
 
 	const encodedContent = encodeBase64(scriptWithPid);
+	const sanitizedEncodedContent = sanitizeShellArg(encodedContent);
+	
 	const script = `
-	 	 mkdir -p ${fullPath}
-	 	 rm -f ${fullPath}/script.sh
-		 touch ${fullPath}/script.sh
-		 chmod +x ${fullPath}/script.sh
-		 echo "${encodedContent}" | base64 -d > ${fullPath}/script.sh
+	 	 mkdir -p ${sanitizedFullPath}
+	 	 rm -f ${sanitizedScriptShPath}
+		 touch ${sanitizedScriptShPath}
+		 chmod +x ${sanitizedScriptShPath}
+		 echo ${sanitizedEncodedContent} | base64 -d > ${sanitizedScriptShPath}
 	`;
 
 	if (schedule?.scheduleType === "dokploy-server") {
