@@ -83,10 +83,16 @@ export const AddTemplate = ({ projectId, baseUrl }: Props) => {
 	const [viewMode, setViewMode] = useState<"detailed" | "icon">("detailed");
 	const [selectedTags, setSelectedTags] = useState<string[]>([]);
 	const [customBaseUrl, setCustomBaseUrl] = useState<string | undefined>(() => {
+		// Validate URL to prevent XSS
+		const validateUrl = (url?: string): string | undefined => {
+			if (!url) return undefined;
+			return (url.startsWith('http://') || url.startsWith('https://')) ? url : undefined;
+		};
+		
 		// Try to get from props first, then localStorage
-		if (baseUrl) return baseUrl;
+		if (baseUrl) return validateUrl(baseUrl);
 		if (typeof window !== "undefined") {
-			return localStorage.getItem(TEMPLATE_BASE_URL_KEY) || undefined;
+			return validateUrl(localStorage.getItem(TEMPLATE_BASE_URL_KEY) || undefined);
 		}
 		return undefined;
 	});
@@ -169,8 +175,13 @@ export const AddTemplate = ({ projectId, baseUrl }: Props) => {
 								/>
 								<Input
 									placeholder="Base URL (optional)"
-									onChange={(e) =>
-										setCustomBaseUrl(e.target.value || undefined)
+									onChange={(e) => {
+										const url = e.target.value || undefined;
+										// Only allow http:// or https:// URLs
+										if (!url || url === "" || url.startsWith('http://') || url.startsWith('https://')) {
+											setCustomBaseUrl(url);
+										}
+									}}
 									}
 									className="w-full sm:w-[300px]"
 									value={customBaseUrl || ""}
@@ -326,7 +337,7 @@ export const AddTemplate = ({ projectId, baseUrl }: Props) => {
 											)}
 										>
 											<img
-												src={`${customBaseUrl || "https://templates.dokploy.com/"}/blueprints/${template?.id}/${template?.logo}`}
+												src={`${customBaseUrl && (customBaseUrl.startsWith('http://') || customBaseUrl.startsWith('https://')) ? customBaseUrl : "https://templates.dokploy.com/"}/blueprints/${template?.id}/${template?.logo}`}
 												className={cn(
 													"object-contain",
 													viewMode === "detailed" ? "size-24" : "size-16",

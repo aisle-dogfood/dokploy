@@ -1,0 +1,50 @@
+FROM public.ecr.aws/docker/library/node:20.16.0-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    git \
+    ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm
+RUN npm install -g pnpm@9.12.0
+
+# Create a non-root user
+RUN useradd -m -s /bin/bash app
+
+# Copy only what's needed for testing
+COPY --chown=app:app package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY --chown=app:app apps/dokploy/package.json ./apps/dokploy/
+COPY --chown=app:app packages/server/package.json ./packages/server/
+COPY --chown=app:app apps/dokploy/__test__ ./apps/dokploy/__test__
+COPY --chown=app:app apps/dokploy/tsconfig.json ./apps/dokploy/
+COPY --chown=app:app apps/dokploy/tsconfig.server.json ./apps/dokploy/
+COPY --chown=app:app packages/server/src ./packages/server/src
+COPY --chown=app:app packages/server/package.json ./packages/server/
+
+# Switch to non-root user
+USER app
+
+# Set PATH to include pnpm binaries
+ENV PATH="/app/node_modules/.bin:/home/app/.local/bin:${PATH}"
+
+# Set environment variables for testing
+ENV NODE_ENV=test
+ENV VITEST_SEGFAULT_RETRY=3
+RUN chown -R app:app /app
+
+# Switch back to non-root user
+USER app
+
+# Set environment variables for testing
+ENV NODE_ENV=test
