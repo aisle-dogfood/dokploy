@@ -1,0 +1,55 @@
+FROM public.ecr.aws/docker/library/node:20.16.0-slim
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm globally as root
+RUN npm install -g pnpm@9.12.0
+
+# Set up working directory
+WORKDIR /app
+
+# Copy package files for better layer caching
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/dokploy/package.json ./apps/dokploy/
+COPY packages/server/package.json ./packages/server/
+
+# Copy the rest of the project files
+COPY . .
+
+# Create non-root user and set permissions
+RUN useradd -m -s /bin/bash app && \
+    chown -R app:app /app
+
+# Set environment variables
+ENV PNPM_HOME="/home/app/.local/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+ENV PATH="/home/app/.local/bin:$PATH"
+ENV NODE_ENV=test
+
+# Switch to non-root user
+USER app
+
+# Copy the rest of the project files
+COPY --chown=app:app . .
+
+# Set test environment
+ENV NODE_ENV=test
+
+# Switch to non-root user
+USER app
+
+# Set PATH to include user's local bin directory
+ENV PATH="/home/app/.local/bin:$PATH"
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Set test environment
+ENV NODE_ENV=test

@@ -1,0 +1,67 @@
+FROM public.ecr.aws/docker/library/node:20.16.0-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    build-essential \
+    git \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm
+RUN npm install -g pnpm@9.12.0
+
+# Create a non-root user with a home directory
+RUN useradd -m -s /bin/bash app
+
+# Set ownership and permissions
+RUN mkdir -p /app && chown -R app:app /app
+
+# Switch to non-root user
+USER app
+
+# Set PATH to include user's local bin directory
+ENV PATH="/home/app/.local/bin:$PATH"
+
+# Copy package files first for better caching
+COPY --chown=app:app package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY --chown=app:app apps/dokploy/package.json ./apps/dokploy/
+COPY --chown=app:app packages/server/package.json ./packages/server/
+
+# Install only the dependencies needed for testing
+RUN pnpm install --frozen-lockfile --filter=dokploy
+
+# Copy the entire repository to ensure all dependencies are available
+COPY --chown=app:app . .
+
+# Create necessary cache directories with correct permissions
+RUN mkdir -p /tmp/pytest_cache && chmod 777 /tmp/pytest_cache
+ENV VITEST_CACHE_DIR=/tmp/pytest_cache
+COPY --chown=app:app package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY --chown=app:app apps/dokploy/package.json ./apps/dokploy/
+COPY --chown=app:app packages/server/package.json ./packages/server/
+
+# Create necessary cache directories with correct permissions
+RUN mkdir -p /tmp/pytest_cache && chmod 777 /tmp/pytest_cache
+ENV VITEST_CACHE_DIR=/tmp/pytest_cache
+# Copy package files first for better caching
+COPY --chown=app:app package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Copy the rest of the repository
+COPY --chown=app:app . .
+
+# Create necessary cache directories with correct permissions
+RUN mkdir -p /tmp/pytest_cache && chmod 777 /tmp/pytest_cache
+ENV VITEST_CACHE_DIR=/tmp/pytest_cache
+
+# Copy the rest of the repository
+COPY --chown=app:app . .
+
+# Create necessary cache directories with correct permissions
+RUN mkdir -p /tmp/pytest_cache && chmod 777 /tmp/pytest_cache
+ENV VITEST_CACHE_DIR=/tmp/pytest_cache
