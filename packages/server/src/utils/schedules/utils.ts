@@ -67,8 +67,8 @@ export const runCommand = async (scheduleId: string) => {
 					serverId,
 					`
 					set -e
-					echo "Running command: docker exec ${containerId} ${shellType} -c '${command}'" >> ${deployment.logPath};
-					docker exec ${containerId} ${shellType} -c '${command}' >> ${deployment.logPath} 2>> ${deployment.logPath} || { 
+					echo "Running command: docker exec ${containerId} ${shellType} -c '***COMMAND REDACTED***'" >> ${deployment.logPath};
+					docker exec ${containerId} ${shellType} -c $'${command.replace(/'/g, "'\\''").replace(/\$/g, "\\$")}' >> ${deployment.logPath} 2>> ${deployment.logPath} || { 
 						echo "❌ Command failed" >> ${deployment.logPath};
 						exit 1;
 					}
@@ -84,11 +84,11 @@ export const runCommand = async (scheduleId: string) => {
 
 			try {
 				writeStream.write(
-					`docker exec ${containerId} ${shellType} -c ${command}\n`,
+					`docker exec ${containerId} ${shellType} -c ***COMMAND REDACTED***\n`,
 				);
 				await spawnAsync(
 					"docker",
-					["exec", containerId, shellType, "-c", command],
+					["exec", containerId, shellType, "-c", command.replace(/'/g, "'\\''").replace(/\$/g, "\\$")],
 					(data) => {
 						if (writeStream.writable) {
 							writeStream.write(data);
@@ -115,7 +115,7 @@ export const runCommand = async (scheduleId: string) => {
 
 			await spawnAsync(
 				"bash",
-				["-c", "./script.sh"],
+				["-c", path.join(fullPath, "script.sh")],
 				async (data) => {
 					if (writeStream.writable) {
 						// we need to extract the PID and Schedule ID from the data
@@ -144,7 +144,7 @@ export const runCommand = async (scheduleId: string) => {
 			const command = `
 				set -e
 				echo "Running script" >> ${deployment.logPath};
-				bash -c ${fullPath}/script.sh 2>&1 | tee -a ${deployment.logPath} || { 
+				bash -c 'bash "${fullPath}/script.sh"' 2>&1 | tee -a ${deployment.logPath} || { 
 					echo "❌ Command failed" >> ${deployment.logPath};
 					exit 1;
 				  }
