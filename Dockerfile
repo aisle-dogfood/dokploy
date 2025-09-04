@@ -64,5 +64,16 @@ RUN curl -sSL https://railpack.com/install.sh | bash
 # Install buildpacks
 COPY --from=buildpacksio/pack:0.35.0 /usr/local/bin/pack /usr/local/bin/pack
 
+# Create admin user and add to docker group for Docker socket access
+RUN useradd -m -s /bin/bash admin && groupadd -f docker && usermod -aG docker admin
+
+# Set proper permissions for application directories
+RUN mkdir -p /etc/dokploy && chown -R admin:admin /etc/dokploy
+RUN chown -R admin:admin /app
+
 EXPOSE 3000
+
+# Switch to non-root user for security
+USER admin
+
 CMD [ "pnpm", "start" ]
