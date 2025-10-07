@@ -5,6 +5,29 @@ import { Client } from "ssh2";
 import { WebSocketServer } from "ws";
 import { getShell } from "./utils";
 
+const CONTAINER_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const ALLOWED_COMMANDS = ["bash", "sh", "/bin/bash", "/bin/sh", "ash", "zsh", "/bin/zsh", "powershell", "cmd"];
+
+function validateDockerParams(containerId: string | null, activeWay: string | null): { isValid: boolean; message?: string } {
+  if (!containerId) {
+    return { isValid: false, message: "Container ID is required" };
+  }
+  
+  if (!CONTAINER_ID_PATTERN.test(containerId)) {
+    return { isValid: false, message: "Invalid container ID format" };
+  }
+  
+  if (!activeWay) {
+    return { isValid: false, message: "Command is required" };
+  }
+  
+  if (!ALLOWED_COMMANDS.includes(activeWay)) {
+    return { isValid: false, message: "Invalid command" };
+  }
+  
+  return { isValid: true };
+}
+
 export const setupDockerContainerTerminalWebSocketServer = (
 	server: http.Server<typeof http.IncomingMessage, typeof http.ServerResponse>,
 ) => {
@@ -34,8 +57,9 @@ export const setupDockerContainerTerminalWebSocketServer = (
 		const serverId = url.searchParams.get("serverId");
 		const { user, session } = await validateRequest(req);
 
-		if (!containerId) {
-			ws.close(4000, "containerId no provided");
+		const validation = validateDockerParams(containerId, activeWay);
+		if (!validation.isValid) {
+			ws.close(4000, validation.message || "Invalid parameters");
 			return;
 		}
 
