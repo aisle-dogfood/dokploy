@@ -204,15 +204,36 @@ export const deleteFileMount = async (mountId: string) => {
 	const basePath = await getBaseFilesPath(mountId);
 
 	const fullPath = path.join(basePath, mount.filePath);
+	
+	// Validate that the resolved path stays within the base directory
+	const resolvedBasePath = path.resolve(basePath);
+	const resolvedFullPath = path.resolve(fullPath);
+	const relativePath = path.relative(resolvedBasePath, resolvedFullPath);
+	
+	// Check if the path tries to escape the base directory
+	if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+		throw new Error('Invalid file path: path traversal detected');
+	}
+	
 	try {
 		const serverId = await getServerId(mount);
 		if (serverId) {
-			const command = `rm -rf ${fullPath}`;
+			// Properly escape the path to prevent command injection
+			const escapedPath = shellEscape(resolvedFullPath);
+			const command = `rm -rf ${escapedPath}`;
 			await execAsyncRemote(serverId, command);
 		} else {
 			await removeFileOrDirectory(fullPath);
 		}
 	} catch {}
+};
+
+// Helper function to properly escape shell arguments
+const shellEscape = (arg: string): string => {
+	// Use single quotes to prevent variable expansion and command substitution
+	// Escape any single quotes in the argument by ending the quoted string,
+	// adding an escaped single quote, and starting a new quoted string
+	return `'${arg.replace(/'/g, "'\"'\"'")}'`;
 };
 
 export const getBaseFilesPath = async (mountId: string) => {
