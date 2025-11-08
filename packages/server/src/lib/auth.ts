@@ -353,11 +353,11 @@ export const validateRequest = async (request: IncomingMessage) => {
 			},
 		});
 
-		session.user.role = member?.role || "member";
+		(session.user as any).role = member?.role || "member";
 		if (member) {
-			session.user.ownerId = member.organization.ownerId;
+			(session.user as any).ownerId = member.organization.ownerId;
 		} else {
-			session.user.ownerId = session.user.id;
+			(session.user as any).ownerId = session.user.id;
 		}
 	}
 

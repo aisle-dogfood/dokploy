@@ -82,7 +82,7 @@ export const AddInvitation = () => {
 		} else {
 			if (!isCloud && data.notificationId) {
 				await sendInvitation({
-					invitationId: result.data.id,
+					invitationId: result.data?.id || "",
 					notificationId: data.notificationId || "",
 				})
 					.then(() => {
