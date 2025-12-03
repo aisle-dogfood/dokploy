@@ -1,5 +1,8 @@
 import type http from "node:http";
 import { IS_CLOUD, findServerById, validateRequest } from "@dokploy/server";
+import { db } from "@dokploy/server/db";
+import * as schema from "@dokploy/server/db/schema";
+import { and, eq } from "drizzle-orm";
 import { publicIpv4, publicIpv6 } from "public-ip";
 import { Client, type ConnectConfig } from "ssh2";
 import { WebSocketServer } from "ws";
@@ -73,15 +76,60 @@ export const setupTerminalWebSocketServer = (
 			return;
 		}
 
+		// Validate serverId format - should be either "local" or a valid nanoid
+		if (serverId !== "local" && !/^[A-Za-z0-9_-]{21}$/.test(serverId)) {
+			console.error(`Invalid serverId format: ${serverId}`);
+			ws.close();
+			return;
+		}
+
+		// Get member information with permissions
+		const member = await db.query.member.findFirst({
+			where: and(
+				eq(schema.member.userId, user.id),
+				eq(schema.member.organizationId, session.activeOrganizationId || ""),
+			),
+		});
+
+		if (!member) {
+			console.error(`Member not found for user ${user.id} in organization ${session.activeOrganizationId}`);
+			ws.close();
+			return;
+		}
+
+		// Check if user has permission to access Docker/SSH
+		if (!member.canAccessToDocker && user.role !== "owner" && user.role !== "admin") {
+			console.error(`User ${user.id} lacks canAccessToDocker permission`);
+			ws.close();
+			return;
+		}
+
 		let connectionDetails: ConnectConfig = {};
 
 		const isLocalServer = serverId === "local";
 
 		if (isLocalServer && !IS_CLOUD) {
-			const port = Number(url.searchParams.get("port"));
+			// Restrict local mode in cloud environments and validate parameters strictly
+			const portParam = url.searchParams.get("port");
 			const username = url.searchParams.get("username");
 
-			if (!port || !username) {
+			if (!portParam || !username) {
+				console.error("Missing port or username for local server connection");
+				ws.close();
+				return;
+			}
+
+			// Validate port range (1-65535)
+			const port = Number(portParam);
+			if (isNaN(port) || port < 1 || port > 65535) {
+				console.error(`Invalid port number: ${portParam}`);
+				ws.close();
+				return;
+			}
+
+			// Validate username format (alphanumeric, underscore, hyphen only)
+			if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+				console.error(`Invalid username format: ${username}`);
 				ws.close();
 				return;
 			}
@@ -125,6 +173,14 @@ export const setupTerminalWebSocketServer = (
 			const server = await findServerById(serverId);
 
 			if (!server) {
+				console.error(`Server not found: ${serverId}`);
+				ws.close();
+				return;
+			}
+
+			// Verify that the server belongs to the user's active organization
+			if (server.organizationId !== session.activeOrganizationId) {
+				console.error(`Server ${serverId} does not belong to organization ${session.activeOrganizationId}`);
 				ws.close();
 				return;
 			}
@@ -132,7 +188,9 @@ export const setupTerminalWebSocketServer = (
 			const { ipAddress: host, port, username, sshKey, sshKeyId } = server;
 
 			if (!sshKeyId) {
-				throw new Error("No SSH key available for this server");
+				console.error(`No SSH key available for server ${serverId}`);
+				ws.close();
+				return;
 			}
 
 			connectionDetails = {
