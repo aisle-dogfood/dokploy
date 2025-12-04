@@ -1,6 +1,11 @@
 import { updateGitea } from "@dokploy/server";
 import type { NextApiRequest, NextApiResponse } from "next";
-import { type Gitea, findGitea, redirectWithError } from "./helper";
+import {
+	type Gitea,
+	findGitea,
+	isUrlSafeFromSSRF,
+	redirectWithError,
+} from "./helper";
 
 // Helper to parse the state parameter
 const parseState = (state: string): string | null => {
@@ -15,7 +20,15 @@ const parseState = (state: string): string | null => {
 
 // Helper to fetch access token from Gitea
 const fetchAccessToken = async (gitea: Gitea, code: string) => {
-	const response = await fetch(`${gitea.giteaUrl}/login/oauth/access_token`, {
+	// Validate the Gitea URL to prevent SSRF attacks
+	const tokenUrl = `${gitea.giteaUrl}/login/oauth/access_token`;
+	if (!isUrlSafeFromSSRF(tokenUrl)) {
+		return {
+			error: "Invalid Gitea URL: URL is not allowed for security reasons",
+		};
+	}
+
+	const response = await fetch(tokenUrl, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/x-www-form-urlencoded",
