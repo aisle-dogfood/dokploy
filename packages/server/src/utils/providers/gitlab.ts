@@ -13,6 +13,7 @@ import { TRPCError } from "@trpc/server";
 import { recreateDirectory } from "../filesystem/directory";
 import { execAsyncRemote } from "../process/execAsync";
 import { spawnAsync } from "../process/spawnAsync";
+import { validateUrlForSSRF } from "../url-validation";
 
 export const refreshGitlabToken = async (gitlabProviderId: string) => {
 	const gitlabProvider = await findGitlabById(gitlabProviderId);
@@ -25,6 +26,9 @@ export const refreshGitlabToken = async (gitlabProviderId: string) => {
 	) {
 		return;
 	}
+
+	// Validate the GitLab URL to prevent SSRF attacks
+	await validateUrlForSSRF(gitlabProvider.gitlabUrl);
 
 	const response = await fetch(`${gitlabProvider.gitlabUrl}/oauth/token`, {
 		method: "POST",
@@ -310,6 +314,9 @@ export const getGitlabBranches = async (input: {
 
 	const gitlabProvider = await findGitlabById(input.gitlabId);
 
+	// Validate the GitLab URL to prevent SSRF attacks
+	await validateUrlForSSRF(gitlabProvider.gitlabUrl);
+
 	const branchesResponse = await fetch(
 		`${gitlabProvider.gitlabUrl}/api/v4/projects/${input.id}/repository/branches`,
 		{
@@ -449,6 +456,9 @@ export const testGitlabConnection = async (
 
 export const validateGitlabProvider = async (gitlabProvider: Gitlab) => {
 	try {
+		// Validate the GitLab URL to prevent SSRF attacks
+		await validateUrlForSSRF(gitlabProvider.gitlabUrl);
+
 		const allProjects = [];
 		let page = 1;
 		const perPage = 100; // GitLab's max per page is 100
