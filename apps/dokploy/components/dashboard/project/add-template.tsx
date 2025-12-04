@@ -72,6 +72,41 @@ import { api } from "@/utils/api";
 
 const TEMPLATE_BASE_URL_KEY = "dokploy_template_base_url";
 
+/**
+ * Sanitizes a URL to prevent XSS attacks by validating the protocol.
+ * Only allows http and https protocols.
+ * @param url - The URL to sanitize
+ * @returns The sanitized URL or '#' if invalid
+ */
+const sanitizeUrl = (url: string | undefined | null): string => {
+	if (!url) {
+		return "#";
+	}
+
+	try {
+		const trimmedUrl = url.trim();
+		
+		// Return # for empty strings
+		if (!trimmedUrl) {
+			return "#";
+		}
+
+		// Parse the URL
+		const parsedUrl = new URL(trimmedUrl, window.location.origin);
+		
+		// Only allow http and https protocols
+		if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+			return parsedUrl.href;
+		}
+		
+		// Reject all other protocols (javascript:, data:, vbscript:, etc.)
+		return "#";
+	} catch {
+		// If URL parsing fails, return safe fallback
+		return "#";
+	}
+};
+
 interface Props {
 	projectId: string;
 	baseUrl?: string;
@@ -376,7 +411,7 @@ export const AddTemplate = ({ projectId, baseUrl }: Props) => {
 												<div className="flex gap-2">
 													{template?.links?.github && (
 														<Link
-															href={template?.links?.github}
+															href={sanitizeUrl(template?.links?.github)}
 															target="_blank"
 															className="text-muted-foreground hover:text-foreground transition-colors"
 														>
@@ -385,7 +420,7 @@ export const AddTemplate = ({ projectId, baseUrl }: Props) => {
 													)}
 													{template?.links?.website && (
 														<Link
-															href={template?.links?.website}
+															href={sanitizeUrl(template?.links?.website)}
 															target="_blank"
 															className="text-muted-foreground hover:text-foreground transition-colors"
 														>
@@ -394,7 +429,7 @@ export const AddTemplate = ({ projectId, baseUrl }: Props) => {
 													)}
 													{template?.links?.docs && (
 														<Link
-															href={template?.links?.docs}
+															href={sanitizeUrl(template?.links?.docs)}
 															target="_blank"
 															className="text-muted-foreground hover:text-foreground transition-colors"
 														>
