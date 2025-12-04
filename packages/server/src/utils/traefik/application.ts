@@ -9,6 +9,12 @@ import { encodeBase64 } from "../docker/utils";
 import { execAsyncRemote } from "../process/execAsync";
 import type { FileConfig, HttpLoadBalancerService } from "./file-types";
 
+const escapeShellArg = (arg: string): string => {
+	// Escape shell argument by wrapping in single quotes and escaping any single quotes
+	// This prevents command injection by treating the entire string as a literal value
+	return `'${arg.replace(/'/g, "'\\''")}'`;
+};
+
 export const createTraefikConfig = (appName: string) => {
 	const defaultPort = 3000;
 	const serviceURLDefault = `http://${appName}:${defaultPort}`;
@@ -60,7 +66,8 @@ export const removeTraefikConfig = async (
 		const configPath = path.join(DYNAMIC_TRAEFIK_PATH, `${appName}.yml`);
 
 		if (serverId) {
-			await execAsyncRemote(serverId, `rm ${configPath}`);
+			const escapedConfigPath = escapeShellArg(configPath);
+			await execAsyncRemote(serverId, `rm ${escapedConfigPath}`);
 		} else {
 			if (fs.existsSync(configPath)) {
 				await fs.promises.unlink(configPath);
@@ -79,7 +86,8 @@ export const removeTraefikConfigRemote = async (
 	try {
 		const { DYNAMIC_TRAEFIK_PATH } = paths(true);
 		const configPath = path.join(DYNAMIC_TRAEFIK_PATH, `${appName}.yml`);
-		await execAsyncRemote(serverId, `rm ${configPath}`);
+		const escapedConfigPath = escapeShellArg(configPath);
+		await execAsyncRemote(serverId, `rm ${escapedConfigPath}`);
 	} catch {}
 };
 
@@ -104,7 +112,8 @@ export const loadOrCreateConfigRemote = async (
 	const fileConfig: FileConfig = { http: { routers: {}, services: {} } };
 	const configPath = path.join(DYNAMIC_TRAEFIK_PATH, `${appName}.yml`);
 	try {
-		const { stdout } = await execAsyncRemote(serverId, `cat ${configPath}`);
+		const escapedConfigPath = escapeShellArg(configPath);
+		const { stdout } = await execAsyncRemote(serverId, `cat ${escapedConfigPath}`);
 
 		if (!stdout) return fileConfig;
 
@@ -131,7 +140,8 @@ export const readRemoteConfig = async (serverId: string, appName: string) => {
 	const { DYNAMIC_TRAEFIK_PATH } = paths(true);
 	const configPath = path.join(DYNAMIC_TRAEFIK_PATH, `${appName}.yml`);
 	try {
-		const { stdout } = await execAsyncRemote(serverId, `cat ${configPath}`);
+		const escapedConfigPath = escapeShellArg(configPath);
+		const { stdout } = await execAsyncRemote(serverId, `cat ${escapedConfigPath}`);
 		if (!stdout) return null;
 		return stdout;
 	} catch {
@@ -186,7 +196,8 @@ export const readConfigInPath = async (pathFile: string, serverId?: string) => {
 	const configPath = path.join(pathFile);
 
 	if (serverId) {
-		const { stdout } = await execAsyncRemote(serverId, `cat ${configPath}`);
+		const escapedConfigPath = escapeShellArg(configPath);
+		const { stdout } = await execAsyncRemote(serverId, `cat ${escapedConfigPath}`);
 		if (!stdout) return null;
 		return stdout;
 	}
@@ -215,7 +226,10 @@ export const writeConfigRemote = async (
 	try {
 		const { DYNAMIC_TRAEFIK_PATH } = paths(true);
 		const configPath = path.join(DYNAMIC_TRAEFIK_PATH, `${appName}.yml`);
-		await execAsyncRemote(serverId, `echo '${traefikConfig}' > ${configPath}`);
+		const escapedConfigPath = escapeShellArg(configPath);
+		// Encode the config to base64 to safely transmit it and avoid shell injection
+		const encodedConfig = encodeBase64(traefikConfig);
+		await execAsyncRemote(serverId, `echo "${encodedConfig}" | base64 -d > ${escapedConfigPath}`);
 	} catch (e) {
 		console.error("Error saving the YAML config file:", e);
 	}
@@ -230,9 +244,10 @@ export const writeTraefikConfigInPath = async (
 		const configPath = path.join(pathFile);
 		if (serverId) {
 			const encoded = encodeBase64(traefikConfig);
+			const escapedConfigPath = escapeShellArg(configPath);
 			await execAsyncRemote(
 				serverId,
-				`echo "${encoded}" | base64 -d > "${configPath}"`,
+				`echo "${encoded}" | base64 -d > ${escapedConfigPath}`,
 			);
 		} else {
 			fs.writeFileSync(configPath, traefikConfig, "utf8");
@@ -265,7 +280,10 @@ export const writeTraefikConfigRemote = async (
 		const { DYNAMIC_TRAEFIK_PATH } = paths(true);
 		const configPath = path.join(DYNAMIC_TRAEFIK_PATH, `${appName}.yml`);
 		const yamlStr = dump(traefikConfig);
-		await execAsyncRemote(serverId, `echo '${yamlStr}' > ${configPath}`);
+		const escapedConfigPath = escapeShellArg(configPath);
+		// Encode the config to base64 to safely transmit it and avoid shell injection
+		const encodedConfig = encodeBase64(yamlStr);
+		await execAsyncRemote(serverId, `echo "${encodedConfig}" | base64 -d > ${escapedConfigPath}`);
 	} catch (e) {
 		console.error("Error saving the YAML config file:", e);
 	}

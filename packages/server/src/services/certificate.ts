@@ -14,6 +14,12 @@ import type { z } from "zod";
 import { encodeBase64 } from "../utils/docker/utils";
 import { execAsyncRemote } from "../utils/process/execAsync";
 
+const escapeShellArg = (arg: string): string => {
+	// Escape shell argument by wrapping in single quotes and escaping any single quotes
+	// This prevents command injection by treating the entire string as a literal value
+	return `'${arg.replace(/'/g, "'\\''")}'`;
+};
+
 export type Certificate = typeof certificates.$inferSelect;
 
 export const findCertificateById = async (certificateId: string) => {
@@ -63,7 +69,8 @@ export const removeCertificateById = async (certificateId: string) => {
 	const certDir = path.join(CERTIFICATES_PATH, certificate.certificatePath);
 
 	if (certificate.serverId) {
-		await execAsyncRemote(certificate.serverId, `rm -rf ${certDir}`);
+		const escapedCertDir = escapeShellArg(certDir);
+		await execAsyncRemote(certificate.serverId, `rm -rf ${escapedCertDir}`);
 	} else {
 		await removeDirectoryIfExistsContent(certDir);
 	}

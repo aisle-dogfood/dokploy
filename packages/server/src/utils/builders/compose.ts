@@ -34,8 +34,9 @@ export const buildCompose = async (compose: ComposeNested, logPath: string) => {
 		createEnvFile(compose);
 
 		if (compose.isolatedDeployment) {
+			const escapedAppName = escapeShellArg(compose.appName);
 			await execAsync(
-				`docker network inspect ${compose.appName} >/dev/null 2>&1 || docker network create ${composeType === "stack" ? "--driver overlay" : ""} --attachable ${compose.appName}`,
+				`docker network inspect ${escapedAppName} >/dev/null 2>&1 || docker network create ${composeType === "stack" ? "--driver overlay" : ""} --attachable ${escapedAppName}`,
 			);
 		}
 
@@ -79,8 +80,9 @@ export const buildCompose = async (compose: ComposeNested, logPath: string) => {
 		);
 
 		if (compose.isolatedDeployment) {
+			const escapedAppName = escapeShellArg(compose.appName);
 			await execAsync(
-				`docker network connect ${compose.appName} $(docker ps --filter "name=dokploy-traefik" -q) >/dev/null 2>&1`,
+				`docker network connect ${escapedAppName} $(docker ps --filter "name=dokploy-traefik" -q) >/dev/null 2>&1`,
 			).catch(() => {});
 		}
 
@@ -127,25 +129,31 @@ Compose Type: ${composeType} ✅`;
 		borderStyle: "double",
 	});
 
+	// Escape shell arguments to prevent command injection
+	const escapedLogPath = escapeShellArg(logPath);
+	const escapedProjectPath = escapeShellArg(projectPath);
+	const escapedAppName = escapeShellArg(compose.appName);
+	const escapedLogBox = escapeShellArg(logBox);
+
 	const bashCommand = `
 	set -e
 	{
-		echo "${logBox}" >> "${logPath}"
+		echo ${escapedLogBox} >> ${escapedLogPath}
 	
 		${newCompose}
 	
 		${envCommand}
 	
-		cd "${projectPath}";
+		cd ${escapedProjectPath};
 
         ${exportEnvCommand}
-		${compose.isolatedDeployment ? `docker network inspect ${compose.appName} >/dev/null 2>&1 || docker network create --attachable ${compose.appName}` : ""}
-		docker ${command.split(" ").join(" ")} >> "${logPath}" 2>&1 || { echo "Error: ❌ Docker command failed" >> "${logPath}"; exit 1; }
-		${compose.isolatedDeployment ? `docker network connect ${compose.appName} $(docker ps --filter "name=dokploy-traefik" -q) >/dev/null 2>&1` : ""}
+		${compose.isolatedDeployment ? `docker network inspect ${escapedAppName} >/dev/null 2>&1 || docker network create --attachable ${escapedAppName}` : ""}
+		docker ${command.split(" ").join(" ")} >> ${escapedLogPath} 2>&1 || { echo "Error: ❌ Docker command failed" >> ${escapedLogPath}; exit 1; }
+		${compose.isolatedDeployment ? `docker network connect ${escapedAppName} $(docker ps --filter "name=dokploy-traefik" -q) >/dev/null 2>&1` : ""}
 	
-		echo "Docker Compose Deployed: ✅" >> "${logPath}"
+		echo "Docker Compose Deployed: ✅" >> ${escapedLogPath}
 	} || {
-		echo "Error: ❌ Script execution failed" >> "${logPath}"
+		echo "Error: ❌ Script execution failed" >> ${escapedLogPath}
 		exit 1
 	}
 	`;
@@ -161,6 +169,12 @@ const sanitizeCommand = (command: string) => {
 	const restCommand = parts.map((arg) => arg.replace(/^"(.*)"$/, "$1"));
 
 	return restCommand.join(" ");
+};
+
+const escapeShellArg = (arg: string): string => {
+	// Escape shell argument by wrapping in single quotes and escaping any single quotes
+	// This prevents command injection by treating the entire string as a literal value
+	return `'${arg.replace(/'/g, "'\\''")}'`;
 };
 
 export const createCommand = (compose: ComposeNested) => {
@@ -236,9 +250,10 @@ export const getCreateEnvFileCommand = (compose: ComposeNested) => {
 	).join("\n");
 
 	const encodedContent = encodeBase64(envFileContent);
+	const escapedEnvFilePath = escapeShellArg(envFilePath);
 	return `
-touch ${envFilePath};
-echo "${encodedContent}" | base64 -d > "${envFilePath}";
+touch ${escapedEnvFilePath};
+echo "${encodedContent}" | base64 -d > ${escapedEnvFilePath};
 	`;
 };
 

@@ -35,6 +35,12 @@ import { removeRollbackById } from "./rollbacks";
 import { findScheduleById } from "./schedule";
 import { findVolumeBackupById } from "./volume-backups";
 
+const escapeShellArg = (arg: string): string => {
+	// Escape shell argument by wrapping in single quotes and escaping any single quotes
+	// This prevents command injection by treating the entire string as a literal value
+	return `'${arg.replace(/'/g, "'\\''")}'`;
+};
+
 export type Deployment = typeof deployments.$inferSelect;
 
 export const findDeploymentById = async (deploymentId: string) => {
@@ -248,9 +254,13 @@ export const createDeploymentCompose = async (
 		if (compose.serverId) {
 			const server = await findServerById(compose.serverId);
 
+			const escapedLogsPath = escapeShellArg(LOGS_PATH);
+			const escapedAppName = escapeShellArg(compose.appName);
+			const escapedLogFilePath = escapeShellArg(logFilePath);
+
 			const command = `
-mkdir -p ${LOGS_PATH}/${compose.appName};
-echo "Initializing deployment" >> ${logFilePath};
+mkdir -p ${escapedLogsPath}/${escapedAppName};
+echo "Initializing deployment" >> ${escapedLogFilePath};
 `;
 
 			await execAsyncRemote(server.serverId, command);
@@ -597,7 +607,8 @@ export const removeDeployments = async (application: Application) => {
 	const { LOGS_PATH } = paths(!!application.serverId);
 	const logsPath = path.join(LOGS_PATH, appName);
 	if (application.serverId) {
-		await execAsyncRemote(application.serverId, `rm -rf ${logsPath}`);
+		const escapedLogsPath = escapeShellArg(logsPath);
+		await execAsyncRemote(application.serverId, `rm -rf ${escapedLogsPath}`);
 	} else {
 		await removeDirectoryIfExistsContent(logsPath);
 	}
@@ -663,7 +674,8 @@ export const removeDeploymentsByPreviewDeploymentId = async (
 	const { LOGS_PATH } = paths(!!serverId);
 	const logsPath = path.join(LOGS_PATH, appName);
 	if (serverId) {
-		await execAsyncRemote(serverId, `rm -rf ${logsPath}`);
+		const escapedLogsPath = escapeShellArg(logsPath);
+		await execAsyncRemote(serverId, `rm -rf ${escapedLogsPath}`);
 	} else {
 		await removeDirectoryIfExistsContent(logsPath);
 	}
@@ -684,7 +696,8 @@ export const removeDeploymentsByComposeId = async (compose: Compose) => {
 	const { LOGS_PATH } = paths(!!compose.serverId);
 	const logsPath = path.join(LOGS_PATH, appName);
 	if (compose.serverId) {
-		await execAsyncRemote(compose.serverId, `rm -rf ${logsPath}`);
+		const escapedLogsPath = escapeShellArg(logsPath);
+		await execAsyncRemote(compose.serverId, `rm -rf ${escapedLogsPath}`);
 	} else {
 		await removeDirectoryIfExistsContent(logsPath);
 	}
