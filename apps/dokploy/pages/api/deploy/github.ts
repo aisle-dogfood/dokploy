@@ -98,7 +98,12 @@ export default async function handler(
 		githubBody?.ref?.startsWith("refs/tags/")
 	) {
 		try {
-			const tagName = githubBody?.ref.replace("refs/tags/", "");
+			// Validate ref is a string to prevent type confusion attacks
+			if (typeof githubBody?.ref !== "string") {
+				res.status(400).json({ message: "Invalid ref type in webhook payload" });
+				return;
+			}
+			const tagName = githubBody.ref.replace("refs/tags/", "");
 			const repository = githubBody?.repository?.name;
 			const owner = githubBody?.repository?.owner?.name;
 			const deploymentTitle = `Tag created: ${tagName}`;
@@ -203,7 +208,12 @@ export default async function handler(
 
 	if (req.headers["x-github-event"] === "push") {
 		try {
-			const branchName = githubBody?.ref?.replace("refs/heads/", "");
+			// Validate ref is a string to prevent type confusion attacks
+			if (typeof githubBody?.ref !== "string") {
+				res.status(400).json({ message: "Invalid ref type in webhook payload" });
+				return;
+			}
+			const branchName = githubBody.ref.replace("refs/heads/", "");
 			const repository = githubBody?.repository?.name;
 
 			const deploymentTitle = extractCommitMessage(req.headers, req.body);
