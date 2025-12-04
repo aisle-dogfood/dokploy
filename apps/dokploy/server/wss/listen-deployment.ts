@@ -50,9 +50,9 @@ export const setupDeploymentLogsWebSocketServer = (
 				const client = new Client();
 				client
 					.on("ready", () => {
-						const command = `
-						tail -n +1 -f ${logPath};
-					`;
+						// Escape single quotes in logPath to prevent command injection
+						const escapedLogPath = logPath.replace(/'/g, "'\\''");
+						const command = `tail -n +1 -f '${escapedLogPath}'`;
 						client.exec(command, (err, stream) => {
 							if (err) {
 								console.error("Execution error:", err);
