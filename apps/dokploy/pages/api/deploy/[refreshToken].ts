@@ -239,7 +239,7 @@ export const extractImageTagFromRequest = (
 ): string | null => {
 	if (headers["user-agent"]?.includes("Go-http-client")) {
 		if (body.push_data && body.repository) {
-			return body.push_data.tag;
+			return body.push_data?.tag;
 		}
 	}
 	return null;
@@ -248,33 +248,33 @@ export const extractImageTagFromRequest = (
 export const extractCommitMessage = (headers: any, body: any) => {
 	// GitHub
 	if (headers["x-github-event"]) {
-		return body.head_commit ? body.head_commit.message : "NEW COMMIT";
+		return body.head_commit ? body.head_commit?.message || "NEW COMMIT" : "NEW COMMIT";
 	}
 
 	// GitLab
 	if (headers["x-gitlab-event"]) {
 		return body.commits && body.commits.length > 0
-			? body.commits[0].message
+			? body.commits[0]?.message || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
-			? body.push.changes[0].new.target.message
+		return body.push?.changes && body.push.changes.length > 0
+			? body.push.changes[0]?.new?.target?.message || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
 	// Gitea
 	if (headers["x-gitea-event"]) {
 		return body.commits && body.commits.length > 0
-			? body.commits[0].message
+			? body.commits[0]?.message || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
 	if (headers["user-agent"]?.includes("Go-http-client")) {
 		if (body.push_data && body.repository) {
-			return `Docker image pushed: ${body.repository.repo_name}:${body.push_data.tag} by ${body.push_data.pusher}`;
+			return `Docker image pushed: ${body.repository?.repo_name}:${body.push_data?.tag} by ${body.push_data?.pusher}`;
 		}
 	}
 
@@ -284,7 +284,7 @@ export const extractCommitMessage = (headers: any, body: any) => {
 export const extractHash = (headers: any, body: any) => {
 	// GitHub
 	if (headers["x-github-event"]) {
-		return body.head_commit ? body.head_commit.id : "";
+		return body.head_commit ? body.head_commit?.id || "" : "";
 	}
 
 	// GitLab
@@ -292,15 +292,15 @@ export const extractHash = (headers: any, body: any) => {
 		return (
 			body.checkout_sha ||
 			(body.commits && body.commits.length > 0
-				? body.commits[0].id
+				? body.commits[0]?.id || "NEW COMMIT"
 				: "NEW COMMIT")
 		);
 	}
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
-			? body.push.changes[0].new.target.hash
+		return body.push?.changes && body.push.changes.length > 0
+			? body.push.changes[0]?.new?.target?.hash || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
