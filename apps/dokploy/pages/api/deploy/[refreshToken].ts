@@ -357,7 +357,21 @@ export const extractCommitedPaths = async (
 	const changes = body.push?.changes || [];
 
 	const commitHashes = changes
-		.map((change: any) => change.new?.target?.hash)
+		.map((change: any) => {
+			// Validate that change is an object with the expected structure
+			if (
+				change &&
+				typeof change === "object" &&
+				change.new &&
+				typeof change.new === "object" &&
+				change.new.target &&
+				typeof change.new.target === "object" &&
+				typeof change.new.target.hash === "string"
+			) {
+				return change.new.target.hash;
+			}
+			return null;
+		})
 		.filter(Boolean);
 	const commitedPaths: string[] = [];
 	for (const commit of commitHashes) {
@@ -371,8 +385,20 @@ export const extractCommitedPaths = async (
 			});
 
 			const data = await response.json();
-			for (const value of data.values) {
-				commitedPaths.push(value.new?.path);
+			// Validate that data.values is an array before iterating
+			if (data && typeof data === "object" && Array.isArray(data.values)) {
+				for (const value of data.values) {
+					// Validate that value has the expected structure
+					if (
+						value &&
+						typeof value === "object" &&
+						value.new &&
+						typeof value.new === "object" &&
+						typeof value.new.path === "string"
+					) {
+						commitedPaths.push(value.new.path);
+					}
+				}
 			}
 		} catch (error) {
 			console.error(
