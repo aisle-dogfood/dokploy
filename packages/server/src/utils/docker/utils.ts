@@ -21,6 +21,12 @@ interface RegistryAuth {
 	registryUrl: string;
 }
 
+const escapeShellArg = (arg: string): string => {
+	// Escape shell argument by wrapping in single quotes and escaping any single quotes
+	// This prevents command injection by treating the entire string as a literal value
+	return `'${arg.replace(/'/g, "'\\''")}'`;
+};
+
 export const pullImage = async (
 	dockerImage: string,
 	onData?: (data: any) => void,
@@ -117,7 +123,8 @@ export const stopService = async (appName: string) => {
 
 export const stopServiceRemote = async (serverId: string, appName: string) => {
 	try {
-		await execAsyncRemote(serverId, `docker service scale ${appName}=0 `);
+		const escapedAppName = escapeShellArg(appName);
+		await execAsyncRemote(serverId, `docker service scale ${escapedAppName}=0 `);
 	} catch (error) {
 		console.error(error);
 		return error;
@@ -231,7 +238,8 @@ export const startService = async (appName: string) => {
 
 export const startServiceRemote = async (serverId: string, appName: string) => {
 	try {
-		await execAsyncRemote(serverId, `docker service scale ${appName}=1 `);
+		const escapedAppName = escapeShellArg(appName);
+		await execAsyncRemote(serverId, `docker service scale ${escapedAppName}=1 `);
 	} catch (error) {
 		console.error(error);
 		throw error;
