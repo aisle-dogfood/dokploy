@@ -58,9 +58,16 @@ export default async function handler(
 				return;
 			}
 		} else if (sourceType === "github") {
-			const normalizedCommits = req.body?.commits?.flatMap(
-				(commit: any) => commit.modified,
-			);
+			const normalizedCommits =
+				req.body &&
+				typeof req.body === "object" &&
+				Array.isArray(req.body.commits)
+					? req.body.commits.flatMap((commit: any) =>
+							commit && typeof commit === "object" && Array.isArray(commit.modified)
+								? commit.modified
+								: [],
+					  )
+					: [];
 
 			const shouldDeployPaths = shouldDeploy(
 				application.watchPaths,
@@ -89,17 +96,44 @@ export default async function handler(
 			let normalizedCommits: string[] = [];
 
 			if (provider === "github") {
-				normalizedCommits = req.body?.commits?.flatMap(
-					(commit: any) => commit.modified,
-				);
+				normalizedCommits =
+					req.body &&
+					typeof req.body === "object" &&
+					Array.isArray(req.body.commits)
+						? req.body.commits.flatMap((commit: any) =>
+								commit &&
+								typeof commit === "object" &&
+								Array.isArray(commit.modified)
+									? commit.modified
+									: [],
+						  )
+						: [];
 			} else if (provider === "gitlab") {
-				normalizedCommits = req.body?.commits?.flatMap(
-					(commit: any) => commit.modified,
-				);
+				normalizedCommits =
+					req.body &&
+					typeof req.body === "object" &&
+					Array.isArray(req.body.commits)
+						? req.body.commits.flatMap((commit: any) =>
+								commit &&
+								typeof commit === "object" &&
+								Array.isArray(commit.modified)
+									? commit.modified
+									: [],
+						  )
+						: [];
 			} else if (provider === "gitea") {
-				normalizedCommits = req.body?.commits?.flatMap(
-					(commit: any) => commit.modified,
-				);
+				normalizedCommits =
+					req.body &&
+					typeof req.body === "object" &&
+					Array.isArray(req.body.commits)
+						? req.body.commits.flatMap((commit: any) =>
+								commit &&
+								typeof commit === "object" &&
+								Array.isArray(commit.modified)
+									? commit.modified
+									: [],
+						  )
+						: [];
 			}
 
 			const shouldDeployPaths = shouldDeploy(
@@ -114,9 +148,18 @@ export default async function handler(
 		} else if (sourceType === "gitlab") {
 			const branchName = extractBranchName(req.headers, req.body);
 
-			const normalizedCommits = req.body?.commits?.flatMap(
-				(commit: any) => commit.modified,
-			);
+			const normalizedCommits =
+				req.body &&
+				typeof req.body === "object" &&
+				Array.isArray(req.body.commits)
+					? req.body.commits.flatMap((commit: any) =>
+							commit &&
+							typeof commit === "object" &&
+							Array.isArray(commit.modified)
+								? commit.modified
+								: [],
+					  )
+					: [];
 
 			const shouldDeployPaths = shouldDeploy(
 				application.watchPaths,
@@ -158,9 +201,18 @@ export default async function handler(
 		} else if (sourceType === "gitea") {
 			const branchName = extractBranchName(req.headers, req.body);
 
-			const normalizedCommits = req.body?.commits?.flatMap(
-				(commit: any) => commit.modified,
-			);
+			const normalizedCommits =
+				req.body &&
+				typeof req.body === "object" &&
+				Array.isArray(req.body.commits)
+					? req.body.commits.flatMap((commit: any) =>
+							commit &&
+							typeof commit === "object" &&
+							Array.isArray(commit.modified)
+								? commit.modified
+								: [],
+					  )
+					: [];
 
 			const shouldDeployPaths = shouldDeploy(
 				application.watchPaths,
@@ -238,7 +290,15 @@ export const extractImageTagFromRequest = (
 	body: any,
 ): string | null => {
 	if (headers["user-agent"]?.includes("Go-http-client")) {
-		if (body.push_data && body.repository) {
+		if (
+			body &&
+			typeof body === "object" &&
+			body.push_data &&
+			typeof body.push_data === "object" &&
+			body.repository &&
+			typeof body.repository === "object" &&
+			typeof body.push_data.tag === "string"
+		) {
 			return body.push_data.tag;
 		}
 	}
@@ -248,32 +308,72 @@ export const extractImageTagFromRequest = (
 export const extractCommitMessage = (headers: any, body: any) => {
 	// GitHub
 	if (headers["x-github-event"]) {
-		return body.head_commit ? body.head_commit.message : "NEW COMMIT";
+		return body &&
+			typeof body === "object" &&
+			body.head_commit &&
+			typeof body.head_commit === "object" &&
+			typeof body.head_commit.message === "string"
+			? body.head_commit.message
+			: "NEW COMMIT";
 	}
 
 	// GitLab
 	if (headers["x-gitlab-event"]) {
-		return body.commits && body.commits.length > 0
+		return body &&
+			typeof body === "object" &&
+			Array.isArray(body.commits) &&
+			body.commits.length > 0 &&
+			body.commits[0] &&
+			typeof body.commits[0] === "object" &&
+			typeof body.commits[0].message === "string"
 			? body.commits[0].message
 			: "NEW COMMIT";
 	}
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
+		return body &&
+			typeof body === "object" &&
+			body.push &&
+			typeof body.push === "object" &&
+			Array.isArray(body.push.changes) &&
+			body.push.changes.length > 0 &&
+			body.push.changes[0] &&
+			typeof body.push.changes[0] === "object" &&
+			body.push.changes[0].new &&
+			typeof body.push.changes[0].new === "object" &&
+			body.push.changes[0].new.target &&
+			typeof body.push.changes[0].new.target === "object" &&
+			typeof body.push.changes[0].new.target.message === "string"
 			? body.push.changes[0].new.target.message
 			: "NEW COMMIT";
 	}
 
 	// Gitea
 	if (headers["x-gitea-event"]) {
-		return body.commits && body.commits.length > 0
+		return body &&
+			typeof body === "object" &&
+			Array.isArray(body.commits) &&
+			body.commits.length > 0 &&
+			body.commits[0] &&
+			typeof body.commits[0] === "object" &&
+			typeof body.commits[0].message === "string"
 			? body.commits[0].message
 			: "NEW COMMIT";
 	}
 
 	if (headers["user-agent"]?.includes("Go-http-client")) {
-		if (body.push_data && body.repository) {
+		if (
+			body &&
+			typeof body === "object" &&
+			body.push_data &&
+			typeof body.push_data === "object" &&
+			body.repository &&
+			typeof body.repository === "object" &&
+			typeof body.repository.repo_name === "string" &&
+			typeof body.push_data.tag === "string" &&
+			typeof body.push_data.pusher === "string"
+		) {
 			return `Docker image pushed: ${body.repository.repo_name}:${body.push_data.tag} by ${body.push_data.pusher}`;
 		}
 	}
@@ -284,29 +384,61 @@ export const extractCommitMessage = (headers: any, body: any) => {
 export const extractHash = (headers: any, body: any) => {
 	// GitHub
 	if (headers["x-github-event"]) {
-		return body.head_commit ? body.head_commit.id : "";
+		return body &&
+			typeof body === "object" &&
+			body.head_commit &&
+			typeof body.head_commit === "object" &&
+			typeof body.head_commit.id === "string"
+			? body.head_commit.id
+			: "";
 	}
 
 	// GitLab
 	if (headers["x-gitlab-event"]) {
-		return (
-			body.checkout_sha ||
-			(body.commits && body.commits.length > 0
-				? body.commits[0].id
-				: "NEW COMMIT")
-		);
+		if (
+			body &&
+			typeof body === "object" &&
+			typeof body.checkout_sha === "string"
+		) {
+			return body.checkout_sha;
+		}
+		return body &&
+			typeof body === "object" &&
+			Array.isArray(body.commits) &&
+			body.commits.length > 0 &&
+			body.commits[0] &&
+			typeof body.commits[0] === "object" &&
+			typeof body.commits[0].id === "string"
+			? body.commits[0].id
+			: "NEW COMMIT";
 	}
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
+		return body &&
+			typeof body === "object" &&
+			body.push &&
+			typeof body.push === "object" &&
+			Array.isArray(body.push.changes) &&
+			body.push.changes.length > 0 &&
+			body.push.changes[0] &&
+			typeof body.push.changes[0] === "object" &&
+			body.push.changes[0].new &&
+			typeof body.push.changes[0].new === "object" &&
+			body.push.changes[0].new.target &&
+			typeof body.push.changes[0].new.target === "object" &&
+			typeof body.push.changes[0].new.target.hash === "string"
 			? body.push.changes[0].new.target.hash
 			: "NEW COMMIT";
 	}
 
 	// Gitea
 	if (headers["x-gitea-event"]) {
-		return body.after || "NEW COMMIT";
+		return body &&
+			typeof body === "object" &&
+			typeof body.after === "string"
+			? body.after
+			: "NEW COMMIT";
 	}
 
 	return "";
@@ -314,15 +446,37 @@ export const extractHash = (headers: any, body: any) => {
 
 export const extractBranchName = (headers: any, body: any) => {
 	if (headers["x-github-event"] || headers["x-gitea-event"]) {
-		return body?.ref?.replace("refs/heads/", "");
+		return body &&
+			typeof body === "object" &&
+			body.ref &&
+			typeof body.ref === "string"
+			? body.ref.replace("refs/heads/", "")
+			: null;
 	}
 
 	if (headers["x-gitlab-event"]) {
-		return body?.ref ? body?.ref.replace("refs/heads/", "") : null;
+		return body &&
+			typeof body === "object" &&
+			body.ref &&
+			typeof body.ref === "string"
+			? body.ref.replace("refs/heads/", "")
+			: null;
 	}
 
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body?.push?.changes[0]?.new?.name;
+		return body &&
+			typeof body === "object" &&
+			body.push &&
+			typeof body.push === "object" &&
+			Array.isArray(body.push.changes) &&
+			body.push.changes.length > 0 &&
+			body.push.changes[0] &&
+			typeof body.push.changes[0] === "object" &&
+			body.push.changes[0].new &&
+			typeof body.push.changes[0].new === "object" &&
+			typeof body.push.changes[0].new.name === "string"
+			? body.push.changes[0].new.name
+			: null;
 	}
 
 	return null;
@@ -354,11 +508,27 @@ export const extractCommitedPaths = async (
 	bitbucketAppPassword: string | null,
 	repository: string | null,
 ) => {
-	const changes = body.push?.changes || [];
+	const changes =
+		body &&
+		typeof body === "object" &&
+		body.push &&
+		typeof body.push === "object" &&
+		Array.isArray(body.push.changes)
+			? body.push.changes
+			: [];
 
 	const commitHashes = changes
-		.map((change: any) => change.new?.target?.hash)
-		.filter(Boolean);
+		.filter(
+			(change: any) =>
+				change &&
+				typeof change === "object" &&
+				change.new &&
+				typeof change.new === "object" &&
+				change.new.target &&
+				typeof change.new.target === "object" &&
+				typeof change.new.target.hash === "string",
+		)
+		.map((change: any) => change.new.target.hash);
 	const commitedPaths: string[] = [];
 	for (const commit of commitHashes) {
 		const url = `https://api.bitbucket.org/2.0/repositories/${bitbucketUsername}/${repository}/diffstat/${commit}`;
@@ -371,8 +541,18 @@ export const extractCommitedPaths = async (
 			});
 
 			const data = await response.json();
-			for (const value of data.values) {
-				commitedPaths.push(value.new?.path);
+			if (data && typeof data === "object" && Array.isArray(data.values)) {
+				for (const value of data.values) {
+					if (
+						value &&
+						typeof value === "object" &&
+						value.new &&
+						typeof value.new === "object" &&
+						typeof value.new.path === "string"
+					) {
+						commitedPaths.push(value.new.path);
+					}
+				}
 			}
 		} catch (error) {
 			console.error(
