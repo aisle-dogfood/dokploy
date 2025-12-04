@@ -801,7 +801,7 @@ export default function Page({ children }: Props) {
 			onOpenChange={(open) => {
 				setDefaultOpen(open);
 
-				document.cookie = `${SIDEBAR_COOKIE_NAME}=${open}`;
+				document.cookie = `${SIDEBAR_COOKIE_NAME}=${open}; Secure; SameSite=Lax`;
 			}}
 			style={
 				{
