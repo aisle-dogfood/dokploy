@@ -4,6 +4,7 @@ import {
 	gitProvider,
 	gitlab,
 } from "@dokploy/server/db/schema";
+import { validateUrlForSSRF } from "@dokploy/server/utils/url-validation";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 
@@ -14,6 +15,16 @@ export const createGitlab = async (
 	organizationId: string,
 	userId: string,
 ) => {
+	// Validate the GitLab URL to prevent SSRF attacks
+	try {
+		await validateUrlForSSRF(input.gitlabUrl);
+	} catch (error) {
+		throw new TRPCError({
+			code: "BAD_REQUEST",
+			message: `Invalid GitLab URL: ${error instanceof Error ? error.message : "Unknown error"}`,
+		});
+	}
+
 	return await db.transaction(async (tx) => {
 		const newGitProvider = await tx
 			.insert(gitProvider)
@@ -66,6 +77,18 @@ export const updateGitlab = async (
 	gitlabId: string,
 	input: Partial<Gitlab>,
 ) => {
+	// Validate the GitLab URL if it's being updated
+	if (input.gitlabUrl) {
+		try {
+			await validateUrlForSSRF(input.gitlabUrl);
+		} catch (error) {
+			throw new TRPCError({
+				code: "BAD_REQUEST",
+				message: `Invalid GitLab URL: ${error instanceof Error ? error.message : "Unknown error"}`,
+			});
+		}
+	}
+
 	return await db
 		.update(gitlab)
 		.set({

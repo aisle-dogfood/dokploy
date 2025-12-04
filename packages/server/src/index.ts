@@ -92,6 +92,7 @@ export * from "./utils/filesystem/ssh";
 
 export * from "./utils/process/execAsync";
 export * from "./utils/process/spawnAsync";
+export * from "./utils/url-validation";
 export * from "./utils/providers/bitbucket";
 export * from "./utils/providers/docker";
 export * from "./utils/providers/git";

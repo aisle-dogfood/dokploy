@@ -1,4 +1,5 @@
 import { findGitlabById, updateGitlab } from "@dokploy/server";
+import { validateUrlForSSRF } from "@dokploy/server/utils/url-validation";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
@@ -12,6 +13,15 @@ export default async function handler(
 	}
 
 	const gitlab = await findGitlabById(gitlabId as string);
+
+	// Validate the GitLab URL to prevent SSRF attacks
+	try {
+		await validateUrlForSSRF(gitlab.gitlabUrl);
+	} catch (error) {
+		return res.status(400).json({
+			error: `Invalid GitLab URL: ${error instanceof Error ? error.message : "Unknown error"}`,
+		});
+	}
 
 	const response = await fetch(`${gitlab.gitlabUrl}/oauth/token`, {
 		method: "POST",
