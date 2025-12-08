@@ -1,7 +1,7 @@
-import { organizationClient } from "better-auth/client/plugins";
-import { twoFactorClient } from "better-auth/client/plugins";
-import { apiKeyClient } from "better-auth/client/plugins";
-import { adminClient } from "better-auth/client/plugins";
+import { adminClient } from "better-auth/client";
+import { apiKeyClient } from "better-auth/client";
+import { organizationClient } from "better-auth/client";
+import { twoFactorClient } from "better-auth/client";
 import { createAuthClient } from "better-auth/react";
 
 export const authClient = createAuthClient({

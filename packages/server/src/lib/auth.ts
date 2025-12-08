@@ -1,8 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import * as bcrypt from "bcrypt";
-import { betterAuth } from "better-auth";
+import { betterAuth, APIError } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { APIError } from "better-auth/api";
 import { admin, apiKey, organization, twoFactor } from "better-auth/plugins";
 import { and, desc, eq } from "drizzle-orm";
 import { IS_CLOUD } from "../constants";
@@ -86,7 +85,7 @@ const { handler, api } = betterAuth({
 			});
 		},
 	},
-	databaseHooks: {
+	hooks: {
 		user: {
 			create: {
 				before: async (_user, context) => {
