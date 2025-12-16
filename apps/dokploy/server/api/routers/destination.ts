@@ -14,14 +14,29 @@ import {
 import {
 	IS_CLOUD,
 	createDestintation,
-	execAsync,
+	execFileAsync,
 	execAsyncRemote,
 	findDestinationById,
 	removeDestinationById,
 	updateDestinationById,
+	findServerById,
 } from "@dokploy/server";
 import { TRPCError } from "@trpc/server";
 import { desc, eq } from "drizzle-orm";
+
+// Shell escape function to safely escape arguments for shell execution
+function shellEscape(arg: string): string {
+	// Replace single quotes with '\'' and wrap in single quotes
+	return `'${arg.replace(/'/g, "'\\''")}'`;
+}
+
+// Safe remote execution wrapper for rclone
+async function execRcloneRemote(serverId: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
+	// Escape each argument for safe shell execution
+	const escapedArgs = args.map(arg => shellEscape(arg));
+	const rcloneCommand = `rclone ${escapedArgs.join(" ")}`;
+	return await execAsyncRemote(serverId, rcloneCommand);
+}
 
 export const destinationRouter = createTRPCRouter({
 	create: adminProcedure
@@ -46,7 +61,9 @@ export const destinationRouter = createTRPCRouter({
 			const { secretAccessKey, bucket, region, endpoint, accessKey, provider } =
 				input;
 			try {
-				const rcloneFlags = [
+				// Build rclone arguments safely
+				const rcloneArgs = [
+					"ls",
 					`--s3-access-key-id=${accessKey}`,
 					`--s3-secret-access-key=${secretAccessKey}`,
 					`--s3-region=${region}`,
@@ -54,11 +71,13 @@ export const destinationRouter = createTRPCRouter({
 					"--s3-no-check-bucket",
 					"--s3-force-path-style",
 				];
+				
 				if (provider) {
-					rcloneFlags.unshift(`--s3-provider=${provider}`);
+					rcloneArgs.splice(1, 0, `--s3-provider=${provider}`);
 				}
+				
 				const rcloneDestination = `:s3:${bucket}`;
-				const rcloneCommand = `rclone ls ${rcloneFlags.join(" ")} "${rcloneDestination}"`;
+				rcloneArgs.push(rcloneDestination);
 
 				if (IS_CLOUD && !input.serverId) {
 					throw new TRPCError({
@@ -68,9 +87,11 @@ export const destinationRouter = createTRPCRouter({
 				}
 
 				if (IS_CLOUD) {
-					await execAsyncRemote(input.serverId || "", rcloneCommand);
+					// For remote execution, use our safe wrapper
+					await execRcloneRemote(input.serverId || "", rcloneArgs);
 				} else {
-					await execAsync(rcloneCommand);
+					// For local execution, use execFileAsync which is safer
+					await execFileAsync("rclone", rcloneArgs);
 				}
 			} catch (error) {
 				throw new TRPCError({
