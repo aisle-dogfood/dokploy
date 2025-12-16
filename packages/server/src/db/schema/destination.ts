@@ -38,12 +38,14 @@ export const destinationsRelations = relations(
 const createSchema = createInsertSchema(destinations, {
 	destinationId: z.string(),
 	name: z.string().min(1),
-	provider: z.string(),
-	accessKey: z.string(),
-	bucket: z.string(),
-	endpoint: z.string(),
-	secretAccessKey: z.string(),
-	region: z.string(),
+	provider: z.string().regex(/^[a-zA-Z0-9_-]*$/, "Provider must contain only alphanumeric characters, hyphens, and underscores").max(50),
+	accessKey: z.string().regex(/^[a-zA-Z0-9+/=]*$/, "Access key contains invalid characters").max(200),
+	bucket: z.string().regex(/^[a-zA-Z0-9._-]*$/, "Bucket name contains invalid characters").min(1).max(63),
+	endpoint: z.string().max(200).url("Invalid endpoint URL").refine((url) => url.startsWith('http://') || url.startsWith('https://'), {
+		message: "Invalid endpoint URL - must use http:// or https:// protocol"
+	}),
+	secretAccessKey: z.string().regex(/^[a-zA-Z0-9+/=]*$/, "Secret access key contains invalid characters").max(200),
+	region: z.string().regex(/^[a-zA-Z0-9_-]*$/, "Region must contain only alphanumeric characters, hyphens, and underscores").max(50),
 });
 
 export const apiCreateDestination = createSchema
@@ -58,7 +60,7 @@ export const apiCreateDestination = createSchema
 	})
 	.required()
 	.extend({
-		serverId: z.string().optional(),
+		serverId: z.string().regex(/^[a-zA-Z0-9_-]*$/, "Server ID contains invalid characters").max(50).optional(),
 	});
 
 export const apiFindOneDestination = createSchema
