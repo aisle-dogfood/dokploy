@@ -11,6 +11,7 @@ export const setupDockerContainerTerminalWebSocketServer = (
 	const wssTerm = new WebSocketServer({
 		noServer: true,
 		path: "/docker-container-terminal",
+		allowSynchronousEvents: false,
 	});
 
 	server.on("upgrade", (req, socket, head) => {

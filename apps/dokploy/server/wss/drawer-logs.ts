@@ -11,6 +11,7 @@ export const setupDrawerLogsWebSocketServer = (
 	const wssTerm = new WebSocketServer({
 		noServer: true,
 		path: "/drawer-logs",
+		allowSynchronousEvents: false,
 	});
 
 	// Set up tRPC WebSocket handler

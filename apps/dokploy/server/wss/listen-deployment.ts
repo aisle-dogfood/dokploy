@@ -10,6 +10,7 @@ export const setupDeploymentLogsWebSocketServer = (
 	const wssTerm = new WebSocketServer({
 		noServer: true,
 		path: "/listen-deployment",
+		allowSynchronousEvents: false,
 	});
 
 	server.on("upgrade", (req, socket, head) => {
