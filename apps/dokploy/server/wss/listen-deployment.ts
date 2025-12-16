@@ -4,6 +4,18 @@ import { findServerById, validateRequest } from "@dokploy/server";
 import { Client } from "ssh2";
 import { WebSocketServer } from "ws";
 
+/**
+ * Escapes a string for safe use in shell commands by wrapping it in single quotes
+ * and escaping any single quotes within the string.
+ * @param arg - The string to escape
+ * @returns The escaped string safe for shell execution
+ */
+const escapeShellArg = (arg: string): string => {
+	// Replace single quotes with '\'' and wrap the entire string in single quotes
+	// This is the POSIX-compliant way to escape shell arguments
+	return `'${arg.replace(/'/g, "'\\''")}'`;
+};
+
 export const setupDeploymentLogsWebSocketServer = (
 	server: http.Server<typeof http.IncomingMessage, typeof http.ServerResponse>,
 ) => {
@@ -50,9 +62,7 @@ export const setupDeploymentLogsWebSocketServer = (
 				const client = new Client();
 				client
 					.on("ready", () => {
-						const command = `
-						tail -n +1 -f ${logPath};
-					`;
+						const command = `tail -n +1 -f ${escapeShellArg(logPath)}`;
 						client.exec(command, (err, stream) => {
 							if (err) {
 								console.error("Execution error:", err);
