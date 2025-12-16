@@ -50,6 +50,7 @@ export const setupTerminalWebSocketServer = (
 	const wssTerm = new WebSocketServer({
 		noServer: true,
 		path: "/terminal",
+		allowSynchronousEvents: false,
 	});
 
 	server.on("upgrade", (req, socket, head) => {

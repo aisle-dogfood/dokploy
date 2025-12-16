@@ -11,6 +11,7 @@ export const setupDockerContainerLogsWebSocketServer = (
 	const wssTerm = new WebSocketServer({
 		noServer: true,
 		path: "/docker-container-logs",
+		allowSynchronousEvents: false,
 	});
 
 	server.on("upgrade", (req, socket, head) => {

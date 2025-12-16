@@ -14,6 +14,7 @@ export const setupDockerStatsMonitoringSocketServer = (
 	const wssTerm = new WebSocketServer({
 		noServer: true,
 		path: "/listen-docker-stats-monitoring",
+		allowSynchronousEvents: false,
 	});
 
 	server.on("upgrade", (req, socket, head) => {
