@@ -4,6 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { gitProvider } from "./git-provider";
+import { encryptedText } from "./utils";
 
 export const gitlab = pgTable("gitlab", {
 	gitlabId: text("gitlabId")
@@ -13,9 +14,9 @@ export const gitlab = pgTable("gitlab", {
 	gitlabUrl: text("gitlabUrl").default("https://gitlab.com").notNull(),
 	applicationId: text("application_id"),
 	redirectUri: text("redirect_uri"),
-	secret: text("secret"),
-	accessToken: text("access_token"),
-	refreshToken: text("refresh_token"),
+	secret: encryptedText("secret"),
+	accessToken: encryptedText("access_token"),
+	refreshToken: encryptedText("refresh_token"),
 	groupName: text("group_name"),
 	expiresAt: integer("expires_at"),
 	gitProviderId: text("gitProviderId")

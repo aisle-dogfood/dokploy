@@ -8,7 +8,7 @@ import { mounts } from "./mount";
 import { projects } from "./project";
 import { server } from "./server";
 import { applicationStatus } from "./shared";
-import { generateAppName } from "./utils";
+import { encryptedText, generateAppName } from "./utils";
 
 export const mariadb = pgTable("mariadb", {
 	mariadbId: text("mariadbId")
@@ -23,8 +23,8 @@ export const mariadb = pgTable("mariadb", {
 	description: text("description"),
 	databaseName: text("databaseName").notNull(),
 	databaseUser: text("databaseUser").notNull(),
-	databasePassword: text("databasePassword").notNull(),
-	databaseRootPassword: text("rootPassword").notNull(),
+	databasePassword: encryptedText("databasePassword").notNull(),
+	databaseRootPassword: encryptedText("rootPassword").notNull(),
 	dockerImage: text("dockerImage").notNull(),
 	command: text("command"),
 	env: text("env"),

@@ -7,7 +7,7 @@ import { mounts } from "./mount";
 import { projects } from "./project";
 import { server } from "./server";
 import { applicationStatus } from "./shared";
-import { generateAppName } from "./utils";
+import { encryptedText, generateAppName } from "./utils";
 
 export const redis = pgTable("redis", {
 	redisId: text("redisId")
@@ -20,7 +20,7 @@ export const redis = pgTable("redis", {
 		.$defaultFn(() => generateAppName("redis"))
 		.unique(),
 	description: text("description"),
-	databasePassword: text("password").notNull(),
+	databasePassword: encryptedText("password").notNull(),
 	dockerImage: text("dockerImage").notNull(),
 	command: text("command"),
 	env: text("env"),
