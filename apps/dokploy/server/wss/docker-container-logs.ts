@@ -50,6 +50,15 @@ export const setupDockerContainerLogsWebSocketServer = (
 			if (serverId) {
 				const server = await findServerById(serverId);
 
+				// Verify organization access
+				if (server.organizationId !== session.activeOrganizationId) {
+					console.error(
+						`Unauthorized access attempt: User ${user.id} tried to access server ${serverId} from organization ${server.organizationId} while in organization ${session.activeOrganizationId}`,
+					);
+					ws.close(4003, "Unauthorized: Server does not belong to your organization");
+					return;
+				}
+
 				if (!server.sshKeyId) return;
 				const client = new Client();
 				client
