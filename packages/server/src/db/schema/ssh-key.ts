@@ -7,13 +7,14 @@ import { organization } from "./account";
 import { applications } from "./application";
 import { compose } from "./compose";
 import { server } from "./server";
+import { encryptedText } from "./encrypted-fields";
 
 export const sshKeys = pgTable("ssh-key", {
 	sshKeyId: text("sshKeyId")
 		.notNull()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	privateKey: text("privateKey").notNull().default(""),
+	privateKey: encryptedText("privateKey").notNull().default(""),
 	publicKey: text("publicKey").notNull(),
 	name: text("name").notNull(),
 	description: text("description"),

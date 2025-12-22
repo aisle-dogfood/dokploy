@@ -16,6 +16,7 @@ import { backups } from "./backups";
 import { projects } from "./project";
 import { schedules } from "./schedule";
 import { certificateType } from "./shared";
+import { encryptedText } from "./encrypted-fields";
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
  * database instance for multiple projects.
@@ -55,7 +56,7 @@ export const users_temp = pgTable("user_temp", {
 	https: boolean("https").notNull().default(false),
 	host: text("host"),
 	letsEncryptEmail: text("letsEncryptEmail"),
-	sshPrivateKey: text("sshPrivateKey"),
+	sshPrivateKey: encryptedText("sshPrivateKey"),
 	enableDockerCleanup: boolean("enableDockerCleanup").notNull().default(false),
 	logCleanupCron: text("logCleanupCron").default("0 0 * * *"),
 	role: text("role").notNull().default("user"),

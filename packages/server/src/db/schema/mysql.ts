@@ -9,6 +9,7 @@ import { projects } from "./project";
 import { server } from "./server";
 import { applicationStatus } from "./shared";
 import { generateAppName } from "./utils";
+import { encryptedText } from "./encrypted-fields";
 
 export const mysql = pgTable("mysql", {
 	mysqlId: text("mysqlId")
@@ -23,8 +24,8 @@ export const mysql = pgTable("mysql", {
 	description: text("description"),
 	databaseName: text("databaseName").notNull(),
 	databaseUser: text("databaseUser").notNull(),
-	databasePassword: text("databasePassword").notNull(),
-	databaseRootPassword: text("rootPassword").notNull(),
+	databasePassword: encryptedText("databasePassword").notNull(),
+	databaseRootPassword: encryptedText("rootPassword").notNull(),
 	dockerImage: text("dockerImage").notNull(),
 	command: text("command"),
 	env: text("env"),
