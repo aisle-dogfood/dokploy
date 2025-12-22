@@ -111,11 +111,25 @@ interface TreeDataItem {
 	children?: TreeDataItem[];
 }
 
+/**
+ * Escapes a string for safe use in shell commands by wrapping it in single quotes
+ * and escaping any single quotes within the string.
+ * @param arg - The string to escape
+ * @returns The escaped string safe for shell execution
+ */
+const escapeShellArg = (arg: string): string => {
+	// Replace each single quote with '\'' (end quote, escaped quote, start quote)
+	return `'${arg.replace(/'/g, "'\\''")}'`;
+};
+
 export const readDirectory = async (
 	dirPath: string,
 	serverId?: string,
 ): Promise<TreeDataItem[]> => {
 	if (serverId) {
+		// Escape dirPath to prevent command injection
+		const escapedDirPath = escapeShellArg(dirPath);
+		
 		const { stdout } = await execAsyncRemote(
 			serverId,
 			`
@@ -159,7 +173,7 @@ process_item() {
     eval $__resultvar="'$json'"
 }
 
-root_dir=${dirPath}
+root_dir=${escapedDirPath}
 
 process_items "$root_dir" json_output
 
