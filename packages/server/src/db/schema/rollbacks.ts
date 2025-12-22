@@ -15,11 +15,12 @@ export const rollbacks = pgTable("rollback", {
 		.notNull()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	deploymentId: text("deploymentId")
-		.notNull()
-		.references(() => deployments.deploymentId, {
-			onDelete: "cascade",
-		}),
+	deploymentId: text("deploymentId").references(
+		() => deployments.deploymentId,
+		{
+			onDelete: "set null",
+		},
+	),
 	version: serial(),
 	image: text("image"),
 	createdAt: text("createdAt")
@@ -44,9 +45,12 @@ export const rollbacksRelations = relations(rollbacks, ({ one }) => ({
 	}),
 }));
 
-export const createRollbackSchema = createInsertSchema(rollbacks).extend({
-	appName: z.string().min(1),
-});
+export const createRollbackSchema = createInsertSchema(rollbacks)
+	.extend({
+		appName: z.string().min(1),
+		deploymentId: z.string().min(1),
+	})
+	.required({ deploymentId: true });
 
 export const updateRollbackSchema = createRollbackSchema.extend({
 	rollbackId: z.string().min(1),
