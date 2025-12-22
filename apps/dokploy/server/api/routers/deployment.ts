@@ -84,8 +84,54 @@ export const deploymentRouter = createTRPCRouter({
 				deploymentId: z.string().min(1),
 			}),
 		)
-		.mutation(async ({ input }) => {
-			const deployment = await findDeploymentById(input.deploymentId);
+		.mutation(async ({ input, ctx }) => {
+			const deployment = await db.query.deployments.findFirst({
+				where: eq(deployments.deploymentId, input.deploymentId),
+				with: {
+					application: {
+						with: {
+							project: true,
+						},
+					},
+					compose: {
+						with: {
+							project: true,
+						},
+					},
+					server: true,
+					schedule: true,
+				},
+			});
+
+			if (!deployment) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Deployment not found",
+				});
+			}
+
+			// Verify organization ownership
+			let isAuthorized = false;
+
+			if (deployment.application) {
+				isAuthorized =
+					deployment.application.project.organizationId ===
+					ctx.session.activeOrganizationId;
+			} else if (deployment.compose) {
+				isAuthorized =
+					deployment.compose.project.organizationId ===
+					ctx.session.activeOrganizationId;
+			} else if (deployment.server) {
+				isAuthorized =
+					deployment.server.organizationId === ctx.session.activeOrganizationId;
+			}
+
+			if (!isAuthorized) {
+				throw new TRPCError({
+					code: "FORBIDDEN",
+					message: "You are not authorized to access this deployment",
+				});
+			}
 
 			if (!deployment.pid) {
 				throw new TRPCError({
