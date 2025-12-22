@@ -5,6 +5,7 @@ import type {
 	slack,
 	telegram,
 } from "@dokploy/server/db/schema";
+import { decrypt } from "@dokploy/server/utils/encryption";
 import nodemailer from "nodemailer";
 
 export const sendEmailNotification = async (
@@ -21,10 +22,12 @@ export const sendEmailNotification = async (
 			fromAddress,
 			toAddresses,
 		} = connection;
+		// Decrypt password before using it
+		const decryptedPassword = decrypt(password);
 		const transporter = nodemailer.createTransport({
 			host: smtpServer,
 			port: smtpPort,
-			auth: { user: username, pass: password },
+			auth: { user: username, pass: decryptedPassword },
 		});
 
 		await transporter.sendMail({
@@ -62,7 +65,9 @@ export const sendTelegramNotification = async (
 	}[][],
 ) => {
 	try {
-		const url = `https://api.telegram.org/bot${connection.botToken}/sendMessage`;
+		// Decrypt bot token before using it
+		const decryptedBotToken = decrypt(connection.botToken);
+		const url = `https://api.telegram.org/bot${decryptedBotToken}/sendMessage`;
 		await fetch(url, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -102,11 +107,13 @@ export const sendGotifyNotification = async (
 	title: string,
 	message: string,
 ) => {
+	// Decrypt app token before using it
+	const decryptedAppToken = decrypt(connection.appToken);
 	const response = await fetch(`${connection.serverUrl}/message`, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
-			"X-Gotify-Key": connection.appToken,
+			"X-Gotify-Key": decryptedAppToken,
 		},
 		body: JSON.stringify({
 			title: title,

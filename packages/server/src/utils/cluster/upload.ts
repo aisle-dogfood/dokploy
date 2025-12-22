@@ -1,4 +1,5 @@
 import type { WriteStream } from "node:fs";
+import { decrypt } from "@dokploy/server/utils/encryption";
 import type { ApplicationNested } from "../builders";
 import { spawnAsync } from "../process/spawnAsync";
 
@@ -29,6 +30,8 @@ export const uploadImage = async (
 		writeStream.write(
 			`📦 [Enabled Registry] Uploading image to ${registry.registryType} | ${imageName} | ${finalURL} | ${registryTag}\n`,
 		);
+		// Decrypt password before using it
+		const decryptedPassword = decrypt(registry.password);
 		const loginCommand = spawnAsync(
 			"docker",
 			["login", finalURL, "-u", registry.username, "--password-stdin"],
@@ -38,7 +41,7 @@ export const uploadImage = async (
 				}
 			},
 		);
-		loginCommand.child?.stdin?.write(registry.password);
+		loginCommand.child?.stdin?.write(decryptedPassword);
 		loginCommand.child?.stdin?.end();
 		await loginCommand;
 
@@ -81,9 +84,11 @@ export const uploadImageRemoteCommand = (
 		: `${registryUrl}/${username}/${imageName}`;
 
 	try {
+		// Decrypt password before using it in the command
+		const decryptedPassword = decrypt(registry.password);
 		const command = `
 		echo "📦 [Enabled Registry] Uploading image to '${registry.registryType}' | '${registryTag}'" >> ${logPath};
-		echo "${registry.password}" | docker login ${finalURL} -u ${registry.username} --password-stdin >> ${logPath} 2>> ${logPath} || { 
+		echo "${decryptedPassword}" | docker login ${finalURL} -u ${registry.username} --password-stdin >> ${logPath} 2>> ${logPath} || { 
 			echo "❌ DockerHub Failed" >> ${logPath};
 			exit 1;
 		}

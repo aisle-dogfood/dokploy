@@ -17,6 +17,7 @@ import {
 	slack,
 	telegram,
 } from "@dokploy/server/db/schema";
+import { encrypt, decrypt } from "@dokploy/server/utils/encryption";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 
@@ -120,7 +121,7 @@ export const createTelegramNotification = async (
 		const newTelegram = await tx
 			.insert(telegram)
 			.values({
-				botToken: input.botToken,
+				botToken: encrypt(input.botToken),
 				chatId: input.chatId,
 				messageThreadId: input.messageThreadId,
 			})
@@ -192,7 +193,7 @@ export const updateTelegramNotification = async (
 		await tx
 			.update(telegram)
 			.set({
-				botToken: input.botToken,
+				botToken: encrypt(input.botToken),
 				chatId: input.chatId,
 				messageThreadId: input.messageThreadId,
 			})
@@ -305,7 +306,7 @@ export const createEmailNotification = async (
 				smtpServer: input.smtpServer,
 				smtpPort: input.smtpPort,
 				username: input.username,
-				password: input.password,
+				password: encrypt(input.password),
 				fromAddress: input.fromAddress,
 				toAddresses: input.toAddresses,
 			})
@@ -380,7 +381,7 @@ export const updateEmailNotification = async (
 				smtpServer: input.smtpServer,
 				smtpPort: input.smtpPort,
 				username: input.username,
-				password: input.password,
+				password: encrypt(input.password),
 				fromAddress: input.fromAddress,
 				toAddresses: input.toAddresses,
 			})
@@ -401,7 +402,7 @@ export const createGotifyNotification = async (
 			.insert(gotify)
 			.values({
 				serverUrl: input.serverUrl,
-				appToken: input.appToken,
+				appToken: encrypt(input.appToken),
 				priority: input.priority,
 				decoration: input.decoration,
 			})
@@ -472,7 +473,7 @@ export const updateGotifyNotification = async (
 			.update(gotify)
 			.set({
 				serverUrl: input.serverUrl,
-				appToken: input.appToken,
+				appToken: encrypt(input.appToken),
 				priority: input.priority,
 				decoration: input.decoration,
 			})

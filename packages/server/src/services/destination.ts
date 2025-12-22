@@ -3,6 +3,7 @@ import {
 	type apiCreateDestination,
 	destinations,
 } from "@dokploy/server/db/schema";
+import { encrypt, decrypt } from "@dokploy/server/utils/encryption";
 import { TRPCError } from "@trpc/server";
 import { and, eq } from "drizzle-orm";
 
@@ -16,6 +17,7 @@ export const createDestintation = async (
 		.insert(destinations)
 		.values({
 			...input,
+			secretAccessKey: encrypt(input.secretAccessKey),
 			organizationId: organizationId,
 		})
 		.returning()
@@ -65,11 +67,15 @@ export const updateDestinationById = async (
 	destinationId: string,
 	destinationData: Partial<Destination>,
 ) => {
+	// Encrypt secretAccessKey if it's being updated
+	const dataToUpdate = { ...destinationData };
+	if (dataToUpdate.secretAccessKey) {
+		dataToUpdate.secretAccessKey = encrypt(dataToUpdate.secretAccessKey);
+	}
+	
 	const result = await db
 		.update(destinations)
-		.set({
-			...destinationData,
-		})
+		.set(dataToUpdate)
 		.where(
 			and(
 				eq(destinations.destinationId, destinationId),

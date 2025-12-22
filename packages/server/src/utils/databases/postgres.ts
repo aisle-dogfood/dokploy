@@ -1,5 +1,6 @@
 import type { InferResultType } from "@dokploy/server/types/with";
 import type { CreateServiceOptions } from "dockerode";
+import { decrypt } from "@dokploy/server/utils/encryption";
 import {
 	calculateResources,
 	generateBindMounts,
@@ -30,7 +31,9 @@ export const buildPostgres = async (postgres: PostgresNested) => {
 		mounts,
 	} = postgres;
 
-	const defaultPostgresEnv = `POSTGRES_DB="${databaseName}"\nPOSTGRES_USER="${databaseUser}"\nPOSTGRES_PASSWORD="${databasePassword}"${
+	// Decrypt the database password before using it
+	const decryptedPassword = decrypt(databasePassword);
+	const defaultPostgresEnv = `POSTGRES_DB="${databaseName}"\nPOSTGRES_USER="${databaseUser}"\nPOSTGRES_PASSWORD="${decryptedPassword}"${
 		env ? `\n${env}` : ""
 	}`;
 	const resources = calculateResources({

@@ -8,6 +8,7 @@ import { buildAppName } from "@dokploy/server/db/schema";
 import { generatePassword } from "@dokploy/server/templates";
 import { buildPostgres } from "@dokploy/server/utils/databases/postgres";
 import { pullImage } from "@dokploy/server/utils/docker/utils";
+import { encrypt, decrypt } from "@dokploy/server/utils/encryption";
 import { TRPCError } from "@trpc/server";
 import { eq, getTableColumns } from "drizzle-orm";
 import { validUniqueServerAppName } from "./project";
@@ -31,9 +32,9 @@ export const createPostgres = async (input: typeof apiCreatePostgres._type) => {
 		.insert(postgres)
 		.values({
 			...input,
-			databasePassword: input.databasePassword
-				? input.databasePassword
-				: generatePassword(),
+			databasePassword: encrypt(
+				input.databasePassword ? input.databasePassword : generatePassword()
+			),
 			appName,
 		})
 		.returning()
@@ -96,11 +97,15 @@ export const updatePostgresById = async (
 	postgresData: Partial<Postgres>,
 ) => {
 	const { appName, ...rest } = postgresData;
+	// Encrypt password if it's being updated
+	const dataToUpdate = { ...rest };
+	if (dataToUpdate.databasePassword) {
+		dataToUpdate.databasePassword = encrypt(dataToUpdate.databasePassword);
+	}
+	
 	const result = await db
 		.update(postgres)
-		.set({
-			...rest,
-		})
+		.set(dataToUpdate)
 		.where(eq(postgres.postgresId, postgresId))
 		.returning();
 

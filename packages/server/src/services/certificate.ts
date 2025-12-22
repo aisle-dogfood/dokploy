@@ -7,6 +7,7 @@ import {
 	certificates,
 } from "@dokploy/server/db/schema";
 import { removeDirectoryIfExistsContent } from "@dokploy/server/utils/filesystem/directory";
+import { encrypt, decrypt } from "@dokploy/server/utils/encryption";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { dump } from "js-yaml";
@@ -39,6 +40,7 @@ export const createCertificate = async (
 		.insert(certificates)
 		.values({
 			...certificateData,
+			privateKey: encrypt(certificateData.privateKey),
 			organizationId: organizationId,
 		})
 		.returning();
@@ -104,9 +106,12 @@ const createCertificateFiles = async (certificate: Certificate) => {
 	const yamlConfig = dump(traefikConfig);
 	const configFile = path.join(certDir, "certificate.yml");
 
+	// Decrypt the private key before writing to files
+	const decryptedPrivateKey = decrypt(certificate.privateKey);
+	
 	if (certificate.serverId) {
 		const certificateData = encodeBase64(certificate.certificateData);
-		const privateKey = encodeBase64(certificate.privateKey);
+		const privateKey = encodeBase64(decryptedPrivateKey);
 		const command = `
 			mkdir -p ${certDir};
 			echo "${certificateData}" | base64 -d > "${crtPath}";
@@ -121,7 +126,7 @@ const createCertificateFiles = async (certificate: Certificate) => {
 		}
 
 		fs.writeFileSync(crtPath, certificate.certificateData);
-		fs.writeFileSync(keyPath, certificate.privateKey);
+		fs.writeFileSync(keyPath, decryptedPrivateKey);
 
 		fs.writeFileSync(configFile, yamlConfig);
 	}
