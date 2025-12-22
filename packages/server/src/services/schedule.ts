@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import path from "node:path";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -58,12 +59,37 @@ export const deleteSchedule = async (scheduleId: string) => {
 		schedule?.compose?.serverId;
 	const { SCHEDULES_PATH } = paths(!!serverId);
 
-	const fullPath = path.join(SCHEDULES_PATH, schedule?.appName || "");
-	const command = `rm -rf ${fullPath}`;
+	const appName = schedule?.appName || "";
+	
+	// Validate appName to prevent path traversal attacks
+	// path.basename() strips any directory components, so if they don't match,
+	// there was a path traversal attempt
+	const sanitizedAppName = path.basename(appName);
+	if (sanitizedAppName !== appName || appName.includes("..") || appName === "") {
+		throw new TRPCError({
+			code: "BAD_REQUEST",
+			message: "Invalid schedule appName",
+		});
+	}
+
+	const fullPath = path.join(SCHEDULES_PATH, sanitizedAppName);
+	
 	if (serverId) {
+		// For remote operations, use shell-safe quoting with single quotes
+		// and escape any single quotes in the path
+		const safePath = fullPath.replace(/'/g, "'\\''");
+		const command = `rm -rf '${safePath}'`;
 		await execAsyncRemote(serverId, command);
 	} else {
-		await execAsync(command);
+		// For local operations, use Node.js filesystem API instead of shell commands
+		try {
+			await fs.rm(fullPath, { recursive: true, force: true });
+		} catch (error) {
+			// Ignore errors if the directory doesn't exist
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+				throw error;
+			}
+		}
 	}
 
 	const scheduleResult = await db
