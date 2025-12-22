@@ -135,7 +135,7 @@ export const readTemplateComposeFile = async (id: string) => {
 
 		return dockerCompose;
 	} catch (error) {
-		console.warn(`Failed to fetch template ${id} from GitHub:`, error);
+		console.warn("Failed to fetch template from GitHub:", id, error);
 
 		// Try to use cached version as fallback
 		const cwd = process.cwd();
@@ -148,11 +148,11 @@ export const readTemplateComposeFile = async (id: string) => {
 		);
 
 		if (existsSync(composeFilePath)) {
-			console.warn(`Using cached version of template ${id}`);
+			console.warn("Using cached version of template:", id);
 			return await readFile(composeFilePath, "utf8");
 		}
 
-		console.error(`Error: Template ${id} not found in GitHub or cache`);
+		console.error("Error: Template not found in GitHub or cache:", id);
 		throw new TRPCError({
 			code: "NOT_FOUND",
 			message: `Template ${id} not found or could not be fetched`,
