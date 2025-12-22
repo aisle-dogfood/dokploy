@@ -13,6 +13,7 @@ import { TRPCError } from "@trpc/server";
 import { recreateDirectory } from "../filesystem/directory";
 import { execAsyncRemote } from "../process/execAsync";
 import { spawnAsync } from "../process/spawnAsync";
+import { escapeShellArg } from "../process/shellEscape";
 
 export const refreshGitlabToken = async (gitlabProviderId: string) => {
 	const gitlabProvider = await findGitlabById(gitlabProviderId);
@@ -200,7 +201,7 @@ export const getGitlabCloneCommand = async (
 
 	if (!gitlabId) {
 		const command = `
-			echo  "Error: ❌ Gitlab Provider not found" >> ${logPath};
+			echo  "Error: ❌ Gitlab Provider not found" >> ${escapeShellArg(logPath)};
 			exit 1;
 		`;
 
@@ -225,7 +226,7 @@ export const getGitlabCloneCommand = async (
 			.replace(/\n/g, "\\n");
 
 		const bashCommand = `
-            echo "${escapedLogMessages}" >> ${logPath};
+            echo "${escapedLogMessages}" >> ${escapeShellArg(logPath)};
             exit 1;  # Exit with error code
         `;
 
@@ -241,13 +242,13 @@ export const getGitlabCloneCommand = async (
 	const repoClone = getGitlabRepoClone(gitlab, gitlabPathNamespace);
 	const cloneUrl = getGitlabCloneUrl(gitlab, repoClone);
 	const cloneCommand = `
-rm -rf ${outputPath};
-mkdir -p ${outputPath};
-if ! git clone --branch ${gitlabBranch} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} --progress ${cloneUrl} ${outputPath} >> ${logPath} 2>&1; then
-	echo "❌ [ERROR] Fail to clone the repository ${repoClone}" >> ${logPath};
+rm -rf ${escapeShellArg(outputPath)};
+mkdir -p ${escapeShellArg(outputPath)};
+if ! git clone --branch ${escapeShellArg(gitlabBranch)} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} --progress ${escapeShellArg(cloneUrl)} ${escapeShellArg(outputPath)} >> ${escapeShellArg(logPath)} 2>&1; then
+	echo "❌ [ERROR] Fail to clone the repository ${repoClone}" >> ${escapeShellArg(logPath)};
 	exit 1;
 fi
-echo "Cloned ${repoClone} to ${outputPath}: ✅" >> ${logPath};
+echo "Cloned ${repoClone} to ${outputPath}: ✅" >> ${escapeShellArg(logPath)};
 	`;
 
 	return cloneCommand;
@@ -407,8 +408,8 @@ export const cloneRawGitlabRepositoryRemote = async (compose: Compose) => {
 	const cloneUrl = getGitlabCloneUrl(gitlabProvider, repoClone);
 	try {
 		const command = `
-			rm -rf ${outputPath};
-			git clone --branch ${branch} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} ${cloneUrl} ${outputPath}
+			rm -rf ${escapeShellArg(outputPath)};
+			git clone --branch ${escapeShellArg(branch)} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} ${escapeShellArg(cloneUrl)} ${escapeShellArg(outputPath)}
 		`;
 		await execAsyncRemote(serverId, command);
 	} catch (error) {

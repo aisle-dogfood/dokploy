@@ -12,6 +12,7 @@ import { TRPCError } from "@trpc/server";
 import { recreateDirectory } from "../filesystem/directory";
 import { execAsyncRemote } from "../process/execAsync";
 import { spawnAsync } from "../process/spawnAsync";
+import { escapeShellArg } from "../process/shellEscape";
 
 export const getErrorCloneRequirements = (entity: {
 	giteaRepository?: string | null;
@@ -131,7 +132,7 @@ export const getGiteaCloneCommand = async (
 
 	if (!giteaId) {
 		const command = `
-		echo  "Error: ❌ Gitlab Provider not found" >> ${logPath};
+		echo  "Error: ❌ Gitlab Provider not found" >> ${escapeShellArg(logPath)};
 		exit 1;
 	`;
 
@@ -153,15 +154,15 @@ export const getGiteaCloneCommand = async (
 	const cloneUrl = `https://oauth2:${gitea?.accessToken}@${baseUrl}/${repoClone}`;
 
 	const cloneCommand = `
-    rm -rf ${outputPath};
-    mkdir -p ${outputPath};
+    rm -rf ${escapeShellArg(outputPath)};
+    mkdir -p ${escapeShellArg(outputPath)};
 
-    if ! git clone --branch ${giteaBranch} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} ${cloneUrl} ${outputPath} >> ${logPath} 2>&1; then
-      echo "❌ [ERROR] Failed to clone the repository ${repoClone}" >> ${logPath};
+    if ! git clone --branch ${escapeShellArg(giteaBranch)} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} ${escapeShellArg(cloneUrl)} ${escapeShellArg(outputPath)} >> ${escapeShellArg(logPath)} 2>&1; then
+      echo "❌ [ERROR] Failed to clone the repository ${repoClone}" >> ${escapeShellArg(logPath)};
       exit 1;
     fi
 
-    echo "Cloned ${repoClone} to ${outputPath}: ✅" >> ${logPath};
+    echo "Cloned ${repoClone} to ${outputPath}: ✅" >> ${escapeShellArg(logPath)};
   `;
 
 	return cloneCommand;
@@ -322,8 +323,8 @@ export const cloneRawGiteaRepositoryRemote = async (compose: Compose) => {
 	const cloneUrl = `https://oauth2:${giteaProvider.accessToken}@${baseUrl}/${repoClone}`;
 	try {
 		const command = `
-			rm -rf ${outputPath};
-			git clone --branch ${giteaBranch} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} ${cloneUrl} ${outputPath}
+			rm -rf ${escapeShellArg(outputPath)};
+			git clone --branch ${escapeShellArg(giteaBranch)} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} ${escapeShellArg(cloneUrl)} ${escapeShellArg(outputPath)}
 		`;
 		await execAsyncRemote(serverId, command);
 	} catch (error) {

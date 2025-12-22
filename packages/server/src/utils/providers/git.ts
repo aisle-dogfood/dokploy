@@ -10,6 +10,7 @@ import { TRPCError } from "@trpc/server";
 import { recreateDirectory } from "../filesystem/directory";
 import { execAsync, execAsyncRemote } from "../process/execAsync";
 import { spawnAsync } from "../process/spawnAsync";
+import { escapeShellArg } from "../process/shellEscape";
 
 export const cloneGitRepository = async (
 	entity: {
@@ -140,7 +141,7 @@ export const getCustomGitCloneCommand = async (
 
 	if (!customGitUrl || !customGitBranch) {
 		const command = `
-			echo  "Error: ❌ Repository not found" >> ${logPath};
+			echo  "Error: ❌ Repository not found" >> ${escapeShellArg(logPath)};
 			exit 1;
 		`;
 
@@ -166,22 +167,22 @@ export const getCustomGitCloneCommand = async (
 		if (!isHttpOrHttps(customGitUrl)) {
 			if (!customGitSSHKeyId) {
 				command.push(
-					`echo "Error: you are trying to clone a ssh repository without a ssh key, please set a ssh key ❌" >> ${logPath};
+					`echo "Error: you are trying to clone a ssh repository without a ssh key, please set a ssh key ❌" >> ${escapeShellArg(logPath)};
 					 exit 1;
 					`,
 				);
 			}
 			command.push(addHostToKnownHostsCommand(customGitUrl));
 		}
-		command.push(`rm -rf ${outputPath};`);
-		command.push(`mkdir -p ${outputPath};`);
+		command.push(`rm -rf ${escapeShellArg(outputPath)};`);
+		command.push(`mkdir -p ${escapeShellArg(outputPath)};`);
 		command.push(
-			`echo "Cloning Custom Git ${customGitUrl}" to ${outputPath}: ✅ >> ${logPath};`,
+			`echo "Cloning Custom Git ${customGitUrl}" to ${outputPath}: ✅ >> ${escapeShellArg(logPath)};`,
 		);
 		if (customGitSSHKeyId) {
 			const sshKey = await findSSHKeyById(customGitSSHKeyId);
 			const { port } = sanitizeRepoPathSSH(customGitUrl);
-			const gitSshCommand = `ssh -i /tmp/id_rsa${port ? ` -p ${port}` : ""} -o UserKnownHostsFile=${knownHostsPath}`;
+			const gitSshCommand = `ssh -i /tmp/id_rsa${port ? ` -p ${port}` : ""} -o UserKnownHostsFile=${escapeShellArg(knownHostsPath)}`;
 			command.push(
 				`
 				echo "${sshKey.privateKey}" > /tmp/id_rsa
@@ -192,13 +193,13 @@ export const getCustomGitCloneCommand = async (
 		}
 
 		command.push(
-			`if ! git clone --branch ${customGitBranch} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} --progress ${customGitUrl} ${outputPath} >> ${logPath} 2>&1; then
-				echo "❌ [ERROR] Fail to clone the repository ${customGitUrl}" >> ${logPath};
+			`if ! git clone --branch ${escapeShellArg(customGitBranch)} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} --progress ${escapeShellArg(customGitUrl)} ${escapeShellArg(outputPath)} >> ${escapeShellArg(logPath)} 2>&1; then
+				echo "❌ [ERROR] Fail to clone the repository ${customGitUrl}" >> ${escapeShellArg(logPath)};
 				exit 1;
 			fi
 			`,
 		);
-		command.push(`echo "Cloned Custom Git ${customGitUrl}: ✅" >> ${logPath};`);
+		command.push(`echo "Cloned Custom Git ${customGitUrl}: ✅" >> ${escapeShellArg(logPath)};`);
 		return command.join("\n");
 	} catch (error) {
 		throw error;
@@ -396,12 +397,12 @@ export const cloneRawGitRepositoryRemote = async (compose: Compose) => {
 			}
 			command.push(addHostToKnownHostsCommand(customGitUrl));
 		}
-		command.push(`rm -rf ${outputPath};`);
-		command.push(`mkdir -p ${outputPath};`);
+		command.push(`rm -rf ${escapeShellArg(outputPath)};`);
+		command.push(`mkdir -p ${escapeShellArg(outputPath)};`);
 		if (customGitSSHKeyId) {
 			const sshKey = await findSSHKeyById(customGitSSHKeyId);
 			const { port } = sanitizeRepoPathSSH(customGitUrl);
-			const gitSshCommand = `ssh -i /tmp/id_rsa${port ? ` -p ${port}` : ""} -o UserKnownHostsFile=${knownHostsPath}`;
+			const gitSshCommand = `ssh -i /tmp/id_rsa${port ? ` -p ${port}` : ""} -o UserKnownHostsFile=${escapeShellArg(knownHostsPath)}`;
 			command.push(
 				`
 				echo "${sshKey.privateKey}" > /tmp/id_rsa
@@ -412,7 +413,7 @@ export const cloneRawGitRepositoryRemote = async (compose: Compose) => {
 		}
 
 		command.push(
-			`if ! git clone --branch ${customGitBranch} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} --progress ${customGitUrl} ${outputPath} ; then
+			`if ! git clone --branch ${escapeShellArg(customGitBranch)} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} --progress ${escapeShellArg(customGitUrl)} ${escapeShellArg(outputPath)} ; then
 				echo "[ERROR] Fail to clone the repository ";
 				exit 1;
 			fi
