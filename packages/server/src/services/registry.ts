@@ -37,7 +37,17 @@ export const createRegistry = async (
 				message: "Select a server to add the registry",
 			});
 		}
-		const loginCommand = `echo ${input.password} | docker login ${input.registryUrl} --username ${input.username} --password-stdin`;
+		const loginCommand = `
+			TEMP_PASSWORD_FILE=\$(mktemp) || exit 1
+			chmod 600 "\$TEMP_PASSWORD_FILE" || { rm -f "\$TEMP_PASSWORD_FILE"; exit 1; }
+			cat > "\$TEMP_PASSWORD_FILE" << 'DOKPLOY_PASSWORD_EOF'
+${input.password}
+DOKPLOY_PASSWORD_EOF
+			docker login ${input.registryUrl} --username ${input.username} --password-stdin < "\$TEMP_PASSWORD_FILE"
+			LOGIN_RESULT=\$?
+			rm -f "\$TEMP_PASSWORD_FILE"
+			exit \$LOGIN_RESULT
+		`;
 		if (input.serverId && input.serverId !== "none") {
 			await execAsyncRemote(input.serverId, loginCommand);
 		} else if (newRegistry.registryType === "cloud") {
@@ -91,7 +101,17 @@ export const updateRegistry = async (
 			.returning()
 			.then((res) => res[0]);
 
-		const loginCommand = `echo ${response?.password} | docker login ${response?.registryUrl} --username ${response?.username} --password-stdin`;
+		const loginCommand = `
+			TEMP_PASSWORD_FILE=\$(mktemp) || exit 1
+			chmod 600 "\$TEMP_PASSWORD_FILE" || { rm -f "\$TEMP_PASSWORD_FILE"; exit 1; }
+			cat > "\$TEMP_PASSWORD_FILE" << 'DOKPLOY_PASSWORD_EOF'
+${response?.password}
+DOKPLOY_PASSWORD_EOF
+			docker login ${response?.registryUrl} --username ${response?.username} --password-stdin < "\$TEMP_PASSWORD_FILE"
+			LOGIN_RESULT=\$?
+			rm -f "\$TEMP_PASSWORD_FILE"
+			exit \$LOGIN_RESULT
+		`;
 
 		if (
 			IS_CLOUD &&
