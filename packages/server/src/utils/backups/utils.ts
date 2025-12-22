@@ -77,6 +77,15 @@ export const getS3Credentials = (destination: Destination) => {
 	return rcloneFlags;
 };
 
+export const redactSensitiveInfo = (command: string): string => {
+	// Redact S3 credentials and database passwords from commands
+	return command
+		.replace(/--s3-access-key-id=[^\s]+/g, "--s3-access-key-id=[REDACTED]")
+		.replace(/--s3-secret-access-key=[^\s]+/g, "--s3-secret-access-key=[REDACTED]")
+		.replace(/--password='[^']+'/g, "--password='[REDACTED]'")
+		.replace(/-p\s+'[^']+'/g, "-p '[REDACTED]'");
+};
+
 export const getPostgresBackupCommand = (
 	database: string,
 	databaseUser: string,
@@ -227,8 +236,8 @@ export const getBackupCommand = (
 	logger.info(
 		{
 			containerSearch,
-			backupCommand,
-			rcloneCommand,
+			backupCommand: backupCommand ? redactSensitiveInfo(backupCommand) : backupCommand,
+			rcloneCommand: redactSensitiveInfo(rcloneCommand),
 			logPath,
 		},
 		`Executing backup command: ${backup.databaseType} ${backup.backupType}`,
