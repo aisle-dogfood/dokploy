@@ -5,6 +5,7 @@ import {
 	removeSecurityMiddleware,
 } from "@dokploy/server/utils/traefik/security";
 import { TRPCError } from "@trpc/server";
+import * as bcrypt from "bcrypt";
 import { eq } from "drizzle-orm";
 import type { z } from "zod";
 import { findApplicationById } from "./application";
@@ -30,10 +31,14 @@ export const createSecurity = async (
 		await db.transaction(async (tx) => {
 			const application = await findApplicationById(data.applicationId);
 
+			// Hash the password before storing
+			const hashedPassword = await bcrypt.hash(data.password, 10);
+
 			const securityResponse = await tx
 				.insert(security)
 				.values({
 					...data,
+					password: hashedPassword,
 				})
 				.returning()
 				.then((res) => res[0]);
@@ -90,15 +95,35 @@ export const updateSecurityById = async (
 	data: Partial<Security>,
 ) => {
 	try {
+		const existingSecurity = await findSecurityById(securityId);
+		const application = await findApplicationById(existingSecurity.applicationId);
+
+		let updateData = { ...data };
+		
+		// If password is being updated, hash it before storing
+		if (data.password) {
+			updateData.password = await bcrypt.hash(data.password, 10);
+		}
+
 		const response = await db
 			.update(security)
-			.set({
-				...data,
-			})
+			.set(updateData)
 			.where(eq(security.securityId, securityId))
-			.returning();
+			.returning()
+			.then((res) => res[0]);
 
-		return response[0];
+		if (!response) {
+			throw new TRPCError({
+				code: "NOT_FOUND",
+				message: "Security not found",
+			});
+		}
+
+		// Update the Traefik middleware with new credentials
+		await removeSecurityMiddleware(application, existingSecurity);
+		await createSecurityMiddleware(application, response);
+
+		return response;
 	} catch (error) {
 		const message =
 			error instanceof Error ? error.message : "Error updating this security";

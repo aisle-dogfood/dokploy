@@ -163,6 +163,11 @@ export const applicationRouter = createTRPCRouter({
 
 			return {
 				...application,
+				// Mask passwords in security records to prevent exposure
+				security: application.security.map((sec) => ({
+					...sec,
+					password: "",
+				})),
 				hasGitProviderAccess,
 				unauthorizedProvider,
 			};
