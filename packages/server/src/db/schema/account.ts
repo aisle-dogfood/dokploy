@@ -7,6 +7,7 @@ import {
 	timestamp,
 } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
+import { encryptedText } from "./encrypted";
 import { projects } from "./project";
 import { server } from "./server";
 import { users_temp } from "./user";
@@ -22,9 +23,9 @@ export const account = pgTable("account", {
 	userId: text("user_id")
 		.notNull()
 		.references(() => users_temp.id, { onDelete: "cascade" }),
-	accessToken: text("access_token"),
-	refreshToken: text("refresh_token"),
-	idToken: text("id_token"),
+	accessToken: encryptedText("access_token"),
+	refreshToken: encryptedText("refresh_token"),
+	idToken: encryptedText("id_token"),
 	accessTokenExpiresAt: timestamp("access_token_expires_at"),
 	refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
 	scope: text("scope"),
@@ -153,8 +154,8 @@ export const invitationRelations = relations(invitation, ({ one }) => ({
 
 export const twoFactor = pgTable("two_factor", {
 	id: text("id").primaryKey(),
-	secret: text("secret").notNull(),
-	backupCodes: text("backup_codes").notNull(),
+	secret: encryptedText("secret").notNull(),
+	backupCodes: encryptedText("backup_codes").notNull(),
 	userId: text("user_id")
 		.notNull()
 		.references(() => users_temp.id, { onDelete: "cascade" }),
@@ -165,7 +166,7 @@ export const apikey = pgTable("apikey", {
 	name: text("name"),
 	start: text("start"),
 	prefix: text("prefix"),
-	key: text("key").notNull(),
+	key: encryptedText("key").notNull(),
 	userId: text("user_id")
 		.notNull()
 		.references(() => users_temp.id, { onDelete: "cascade" }),
