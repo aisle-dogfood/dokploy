@@ -63,7 +63,7 @@ export const deployments = pgTable("deployment", {
 	}),
 	rollbackId: text("rollbackId").references(
 		(): AnyPgColumn => rollbacks.rollbackId,
-		{ onDelete: "cascade" },
+		{ onDelete: "set null" },
 	),
 	volumeBackupId: text("volumeBackupId").references(
 		(): AnyPgColumn => volumeBackups.volumeBackupId,

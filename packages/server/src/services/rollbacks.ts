@@ -38,6 +38,10 @@ export const createRollback = async (
 			throw new Error("Failed to create rollback");
 		}
 
+		if (!rollback.deploymentId) {
+			throw new Error("Rollback must have an associated deployment");
+		}
+
 		const tagImage = `${input.appName}:v${rollback.version}`;
 		const deployment = await findDeploymentById(rollback.deploymentId);
 
@@ -128,6 +132,10 @@ export const removeRollbackById = async (rollbackId: string) => {
 
 	if (rollback?.image) {
 		try {
+			if (!rollback.deploymentId) {
+				throw new Error("Rollback has no associated deployment");
+			}
+
 			const deployment = await findDeploymentById(rollback.deploymentId);
 
 			if (!deployment?.applicationId) {
@@ -152,6 +160,10 @@ export const removeRollbackById = async (rollbackId: string) => {
 
 export const rollback = async (rollbackId: string) => {
 	const result = await findRollbackById(rollbackId);
+
+	if (!result.deploymentId) {
+		throw new Error("Rollback has no associated deployment");
+	}
 
 	const deployment = await findDeploymentById(result.deploymentId);
 
