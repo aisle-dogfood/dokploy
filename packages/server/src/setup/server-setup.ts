@@ -190,6 +190,15 @@ const installRequirements = async (
 		throw new Error("No SSH Key found");
 	}
 
+	// Security Warning: Check if root user is being used
+	if (server.username === "root") {
+		const warningMsg = 
+			`⚠️  SECURITY WARNING: Server setup for "${server.name}" is using 'root' user. ` +
+			`This increases security risks. Consider using a non-root user with sudo privileges.`;
+		console.warn(warningMsg);
+		onData?.(warningMsg + "\n");
+	}
+
 	return new Promise<void>((resolve, reject) => {
 		client
 			.once("ready", () => {
