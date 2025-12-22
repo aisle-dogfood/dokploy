@@ -7,12 +7,10 @@ import {
 import { buildAppName } from "@dokploy/server/db/schema";
 import { generatePassword } from "@dokploy/server/templates";
 import { buildMariadb } from "@dokploy/server/utils/databases/mariadb";
-import { pullImage } from "@dokploy/server/utils/docker/utils";
+import { pullImage, pullRemoteImage } from "@dokploy/server/utils/docker/utils";
 import { TRPCError } from "@trpc/server";
 import { eq, getTableColumns } from "drizzle-orm";
 import { validUniqueServerAppName } from "./project";
-
-import { execAsyncRemote } from "@dokploy/server/utils/process/execAsync";
 
 export type Mariadb = typeof mariadb.$inferSelect;
 
@@ -132,9 +130,9 @@ export const deployMariadb = async (
 		});
 		onData?.("Starting mariadb deployment...");
 		if (mariadb.serverId) {
-			await execAsyncRemote(
+			await pullRemoteImage(
+				mariadb.dockerImage,
 				mariadb.serverId,
-				`docker pull ${mariadb.dockerImage}`,
 				onData,
 			);
 		} else {

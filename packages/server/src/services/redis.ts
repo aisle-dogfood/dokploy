@@ -3,12 +3,10 @@ import { type apiCreateRedis, redis } from "@dokploy/server/db/schema";
 import { buildAppName } from "@dokploy/server/db/schema";
 import { generatePassword } from "@dokploy/server/templates";
 import { buildRedis } from "@dokploy/server/utils/databases/redis";
-import { pullImage } from "@dokploy/server/utils/docker/utils";
+import { pullImage, pullRemoteImage } from "@dokploy/server/utils/docker/utils";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { validUniqueServerAppName } from "./project";
-
-import { execAsyncRemote } from "@dokploy/server/utils/process/execAsync";
 
 export type Redis = typeof redis.$inferSelect;
 
@@ -101,9 +99,9 @@ export const deployRedis = async (
 
 		onData?.("Starting redis deployment...");
 		if (redis.serverId) {
-			await execAsyncRemote(
+			await pullRemoteImage(
+				redis.dockerImage,
 				redis.serverId,
-				`docker pull ${redis.dockerImage}`,
 				onData,
 			);
 		} else {
