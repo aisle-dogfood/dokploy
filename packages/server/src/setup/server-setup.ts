@@ -15,6 +15,10 @@ import {
 } from "@dokploy/server/setup/traefik-setup";
 import { Client } from "ssh2";
 import { recreateDirectory } from "../utils/filesystem/directory";
+import {
+	sanitizeServerCommand,
+	validateServerCommand,
+} from "../utils/command-validation";
 
 import slug from "slugify";
 
@@ -193,7 +197,26 @@ const installRequirements = async (
 	return new Promise<void>((resolve, reject) => {
 		client
 			.once("ready", () => {
-				const command = server.command || defaultCommand();
+				let command = server.command || defaultCommand();
+
+				// Security: Validate and sanitize the command before execution
+				// This is a defense-in-depth measure to prevent command injection
+				try {
+					if (server.command) {
+						validateServerCommand(server.command);
+						command = sanitizeServerCommand(server.command);
+					}
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error
+							? error.message
+							: "Command validation failed";
+					onData?.(`❌ Security validation failed: ${errorMessage}`);
+					client.end();
+					reject(new Error(`Command validation failed: ${errorMessage}`));
+					return;
+				}
+
 				client.exec(command, (err, stream) => {
 					if (err) {
 						onData?.(err.message);
