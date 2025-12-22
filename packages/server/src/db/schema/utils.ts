@@ -1,5 +1,7 @@
 import { generatePassword } from "@dokploy/server/templates";
+import { decrypt, encrypt } from "@dokploy/server/utils/encryption";
 import { faker } from "@faker-js/faker";
+import { customType } from "drizzle-orm/pg-core";
 import { customAlphabet } from "nanoid";
 
 const alphabet = "abcdefghijklmnopqrstuvwxyz123456789";
@@ -28,3 +30,24 @@ export const buildAppName = (type: string, baseAppName?: string) => {
 	}
 	return generateAppName(type);
 };
+
+/**
+ * Custom Drizzle column type for encrypted text fields
+ * Automatically encrypts data before storing and decrypts when reading
+ */
+export const encryptedText = customType<{
+	data: string;
+	driverData: string;
+}>({
+	dataType() {
+		return "text";
+	},
+	toDriver(value: string): string {
+		if (!value) return value;
+		return encrypt(value);
+	},
+	fromDriver(value: string): string {
+		if (!value) return value;
+		return decrypt(value);
+	},
+});

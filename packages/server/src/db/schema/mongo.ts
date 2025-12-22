@@ -8,7 +8,7 @@ import { mounts } from "./mount";
 import { projects } from "./project";
 import { server } from "./server";
 import { applicationStatus } from "./shared";
-import { generateAppName } from "./utils";
+import { encryptedText, generateAppName } from "./utils";
 
 export const mongo = pgTable("mongo", {
 	mongoId: text("mongoId")
@@ -22,7 +22,7 @@ export const mongo = pgTable("mongo", {
 		.unique(),
 	description: text("description"),
 	databaseUser: text("databaseUser").notNull(),
-	databasePassword: text("databasePassword").notNull(),
+	databasePassword: encryptedText("databasePassword").notNull(),
 	dockerImage: text("dockerImage").notNull(),
 	command: text("command"),
 	env: text("env"),

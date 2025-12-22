@@ -4,6 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { gitProvider } from "./git-provider";
+import { encryptedText } from "./utils";
 
 export const github = pgTable("github", {
 	githubId: text("githubId")
@@ -13,10 +14,10 @@ export const github = pgTable("github", {
 	githubAppName: text("githubAppName"),
 	githubAppId: integer("githubAppId"),
 	githubClientId: text("githubClientId"),
-	githubClientSecret: text("githubClientSecret"),
+	githubClientSecret: encryptedText("githubClientSecret"),
 	githubInstallationId: text("githubInstallationId"),
-	githubPrivateKey: text("githubPrivateKey"),
-	githubWebhookSecret: text("githubWebhookSecret"),
+	githubPrivateKey: encryptedText("githubPrivateKey"),
+	githubWebhookSecret: encryptedText("githubWebhookSecret"),
 	gitProviderId: text("gitProviderId")
 		.notNull()
 		.references(() => gitProvider.gitProviderId, { onDelete: "cascade" }),
