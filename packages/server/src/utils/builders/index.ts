@@ -1,6 +1,7 @@
 import { createWriteStream } from "node:fs";
 import type { InferResultType } from "@dokploy/server/types/with";
 import type { CreateServiceOptions } from "dockerode";
+import { decrypt } from "@dokploy/server/utils/encryption";
 import { uploadImage, uploadImageRemoteCommand } from "../cluster/upload";
 import {
 	calculateResources,
@@ -232,15 +233,19 @@ export const getAuthConfig = (application: ApplicationNested) => {
 
 	if (sourceType === "docker") {
 		if (username && password) {
+			// Decrypt password if it's encrypted (for application-level passwords)
+			const decryptedPassword = password ? decrypt(password) : password;
 			return {
-				password,
+				password: decryptedPassword,
 				username,
 				serveraddress: registryUrl || "",
 			};
 		}
 	} else if (registry) {
+		// Decrypt the registry password before using it
+		const decryptedPassword = registry.password ? decrypt(registry.password) : registry.password;
 		return {
-			password: registry.password,
+			password: decryptedPassword,
 			username: registry.username,
 			serveraddress: registry.registryUrl,
 		};

@@ -1,6 +1,7 @@
 import { logger } from "@dokploy/server/lib/logger";
 import type { BackupSchedule } from "@dokploy/server/services/backup";
 import type { Destination } from "@dokploy/server/services/destination";
+import { decrypt } from "@dokploy/server/utils/encryption";
 import { scheduleJob, scheduledJobs } from "node-schedule";
 import { keepLatestNBackups } from ".";
 import { runComposeBackup } from "./compose";
@@ -61,9 +62,11 @@ export const normalizeS3Path = (prefix: string) => {
 export const getS3Credentials = (destination: Destination) => {
 	const { accessKey, secretAccessKey, region, endpoint, provider } =
 		destination;
+	// Decrypt the secret access key before using it
+	const decryptedSecretAccessKey = decrypt(secretAccessKey);
 	const rcloneFlags = [
 		`--s3-access-key-id=${accessKey}`,
-		`--s3-secret-access-key=${secretAccessKey}`,
+		`--s3-secret-access-key=${decryptedSecretAccessKey}`,
 		`--s3-region=${region}`,
 		`--s3-endpoint=${endpoint}`,
 		"--s3-no-check-bucket",

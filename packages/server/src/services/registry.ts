@@ -4,6 +4,7 @@ import {
 	execAsync,
 	execAsyncRemote,
 } from "@dokploy/server/utils/process/execAsync";
+import { encrypt, decrypt } from "@dokploy/server/utils/encryption";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { IS_CLOUD } from "../constants";
@@ -19,6 +20,7 @@ export const createRegistry = async (
 			.insert(registry)
 			.values({
 				...input,
+				password: encrypt(input.password),
 				organizationId: organizationId,
 			})
 			.returning()
@@ -82,16 +84,22 @@ export const updateRegistry = async (
 	registryData: Partial<Registry> & { serverId?: string | null },
 ) => {
 	try {
+		// Encrypt password if it's being updated
+		const dataToUpdate = { ...registryData };
+		if (dataToUpdate.password) {
+			dataToUpdate.password = encrypt(dataToUpdate.password);
+		}
+		
 		const response = await db
 			.update(registry)
-			.set({
-				...registryData,
-			})
+			.set(dataToUpdate)
 			.where(eq(registry.registryId, registryId))
 			.returning()
 			.then((res) => res[0]);
 
-		const loginCommand = `echo ${response?.password} | docker login ${response?.registryUrl} --username ${response?.username} --password-stdin`;
+		// Decrypt password for use in docker login command
+		const decryptedPassword = response?.password ? decrypt(response.password) : "";
+		const loginCommand = `echo ${decryptedPassword} | docker login ${response?.registryUrl} --username ${response?.username} --password-stdin`;
 
 		if (
 			IS_CLOUD &&
