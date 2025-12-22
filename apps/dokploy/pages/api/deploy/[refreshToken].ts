@@ -322,7 +322,9 @@ export const extractBranchName = (headers: any, body: any) => {
 	}
 
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body?.push?.changes[0]?.new?.name;
+		return body?.push?.changes && body.push.changes.length > 0
+			? body.push.changes[0]?.new?.name
+			: null;
 	}
 
 	return null;
