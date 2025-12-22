@@ -354,7 +354,7 @@ export const extractCommitedPaths = async (
 	bitbucketAppPassword: string | null,
 	repository: string | null,
 ) => {
-	const changes = body.push?.changes || [];
+	const changes = Array.isArray(body.push?.changes) ? body.push.changes : [];
 
 	const commitHashes = changes
 		.map((change: any) => change.new?.target?.hash)
