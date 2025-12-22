@@ -10,6 +10,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { encryptedTextOptional } from "../../utils/encryption";
 import { bitbucket } from "./bitbucket";
 import { deployments } from "./deployment";
 import { domains } from "./domain";
@@ -174,7 +175,7 @@ export const applications = pgTable("application", {
 	bitbucketBuildPath: text("bitbucketBuildPath").default("/"),
 	// Docker
 	username: text("username"),
-	password: text("password"),
+	password: encryptedTextOptional(),
 	dockerImage: text("dockerImage"),
 	registryUrl: text("registryUrl"),
 	// Git

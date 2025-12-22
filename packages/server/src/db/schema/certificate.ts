@@ -3,6 +3,7 @@ import { boolean, pgTable, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { encryptedText } from "../../utils/encryption";
 import { organization } from "./account";
 import { server } from "./server";
 import { generateAppName } from "./utils";
@@ -13,8 +14,8 @@ export const certificates = pgTable("certificate", {
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
 	name: text("name").notNull(),
-	certificateData: text("certificateData").notNull(),
-	privateKey: text("privateKey").notNull(),
+	certificateData: encryptedText().notNull(),
+	privateKey: encryptedText().notNull(),
 	certificatePath: text("certificatePath")
 		.notNull()
 		.$defaultFn(() => generateAppName("certificate"))

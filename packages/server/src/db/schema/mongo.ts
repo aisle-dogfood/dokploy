@@ -3,6 +3,7 @@ import { boolean, integer, pgTable, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { encryptedText } from "../../utils/encryption";
 import { backups } from "./backups";
 import { mounts } from "./mount";
 import { projects } from "./project";
@@ -22,7 +23,7 @@ export const mongo = pgTable("mongo", {
 		.unique(),
 	description: text("description"),
 	databaseUser: text("databaseUser").notNull(),
-	databasePassword: text("databasePassword").notNull(),
+	databasePassword: encryptedText().notNull(),
 	dockerImage: text("dockerImage").notNull(),
 	command: text("command"),
 	env: text("env"),

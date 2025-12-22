@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
+import { encryptedText } from "../../utils/encryption";
 import { sshKeyCreate, sshKeyType } from "../validations";
 import { organization } from "./account";
 import { applications } from "./application";
@@ -13,7 +14,7 @@ export const sshKeys = pgTable("ssh-key", {
 		.notNull()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	privateKey: text("privateKey").notNull().default(""),
+	privateKey: encryptedText().notNull().default(""),
 	publicKey: text("publicKey").notNull(),
 	name: text("name").notNull(),
 	description: text("description"),

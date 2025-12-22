@@ -3,6 +3,7 @@ import { integer, pgTable, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { encryptedTextOptional } from "../../utils/encryption";
 import { gitProvider } from "./git-provider";
 
 export const github = pgTable("github", {
@@ -13,10 +14,10 @@ export const github = pgTable("github", {
 	githubAppName: text("githubAppName"),
 	githubAppId: integer("githubAppId"),
 	githubClientId: text("githubClientId"),
-	githubClientSecret: text("githubClientSecret"),
+	githubClientSecret: encryptedTextOptional(),
 	githubInstallationId: text("githubInstallationId"),
-	githubPrivateKey: text("githubPrivateKey"),
-	githubWebhookSecret: text("githubWebhookSecret"),
+	githubPrivateKey: encryptedTextOptional(),
+	githubWebhookSecret: encryptedTextOptional(),
 	gitProviderId: text("gitProviderId")
 		.notNull()
 		.references(() => gitProvider.gitProviderId, { onDelete: "cascade" }),
