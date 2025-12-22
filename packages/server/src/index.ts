@@ -135,5 +135,6 @@ export {
 export * from "./utils/schedules/utils";
 export * from "./utils/schedules/index";
 export * from "./utils/volume-backups/index";
+export * from "./utils/encryption";
 
 export * from "./lib/logger";

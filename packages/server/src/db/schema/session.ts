@@ -1,11 +1,12 @@
 import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { encryptedText } from "./encrypted-column";
 import { users_temp } from "./user";
 
 // OLD TABLE
 export const session = pgTable("session_temp", {
 	id: text("id").primaryKey(),
 	expiresAt: timestamp("expires_at").notNull(),
-	token: text("token").notNull().unique(),
+	token: encryptedText("token").notNull().unique(),
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
 	ipAddress: text("ip_address"),
