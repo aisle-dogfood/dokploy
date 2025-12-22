@@ -129,6 +129,11 @@ export const setupTerminalWebSocketServer = (
 				return;
 			}
 
+			if (server.organizationId !== session.activeOrganizationId) {
+				ws.close(4003, "You are not authorized to access this server");
+				return;
+			}
+
 			const { ipAddress: host, port, username, sshKey, sshKeyId } = server;
 
 			if (!sshKeyId) {
