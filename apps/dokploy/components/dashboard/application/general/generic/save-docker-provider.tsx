@@ -48,7 +48,7 @@ export const SaveDockerProvider = ({ applicationId }: Props) => {
 		if (data) {
 			form.reset({
 				dockerImage: data.dockerImage || "",
-				password: data.password || "",
+				password: "", // Never pre-fill password from server for security
 				username: data.username || "",
 				registryURL: data.registryUrl || "",
 			});
@@ -135,7 +135,11 @@ export const SaveDockerProvider = ({ applicationId }: Props) => {
 									<FormLabel>Password</FormLabel>
 									<FormControl>
 										<Input
-											placeholder="Password"
+											placeholder={
+												data?.username
+													? "Leave empty to keep current password"
+													: "Password"
+											}
 											autoComplete="one-time-code"
 											{...field}
 											type="password"

@@ -161,8 +161,11 @@ export const applicationRouter = createTRPCRouter({
 				}
 			}
 
+			// Exclude sensitive password field from response for security
+			const { password, ...applicationWithoutPassword } = application;
+
 			return {
-				...application,
+				...applicationWithoutPassword,
 				hasGitProviderAccess,
 				unauthorizedProvider,
 			};
@@ -487,14 +490,29 @@ export const applicationRouter = createTRPCRouter({
 					message: "You are not authorized to save this docker provider",
 				});
 			}
-			await updateApplication(input.applicationId, {
+
+			// Only update password if a new one is provided (not null/empty)
+			const updateData: {
+				dockerImage: string;
+				username: string | null;
+				password?: string | null;
+				sourceType: "docker";
+				applicationStatus: "idle";
+				registryUrl: string | null;
+			} = {
 				dockerImage: input.dockerImage,
 				username: input.username,
-				password: input.password,
 				sourceType: "docker",
 				applicationStatus: "idle",
 				registryUrl: input.registryUrl,
-			});
+			};
+
+			// Only include password in update if it's provided
+			if (input.password) {
+				updateData.password = input.password;
+			}
+
+			await updateApplication(input.applicationId, updateData);
 
 			return true;
 		}),
