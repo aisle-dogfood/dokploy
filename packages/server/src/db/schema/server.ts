@@ -23,6 +23,12 @@ import { redis } from "./redis";
 import { schedules } from "./schedule";
 import { sshKeys } from "./ssh-key";
 import { generateAppName } from "./utils";
+
+// Helper function to generate a secure random token
+const generateSecureToken = (): string => {
+	return nanoid(32);
+};
+
 export const serverStatus = pgEnum("serverStatus", ["active", "inactive"]);
 
 export const server = pgTable("server", {
@@ -34,7 +40,7 @@ export const server = pgTable("server", {
 	description: text("description"),
 	ipAddress: text("ipAddress").notNull(),
 	port: integer("port").notNull(),
-	username: text("username").notNull().default("root"),
+	username: text("username").notNull(),
 	appName: text("appName")
 		.notNull()
 		.$defaultFn(() => generateAppName("server")),
@@ -72,12 +78,12 @@ export const server = pgTable("server", {
 			};
 		}>()
 		.notNull()
-		.default({
+		.$defaultFn(() => ({
 			server: {
-				type: "Remote",
+				type: "Remote" as const,
 				refreshRate: 60,
 				port: 4500,
-				token: "",
+				token: generateSecureToken(),
 				urlCallback: "",
 				cronJob: "",
 				retentionDays: 2,
@@ -93,7 +99,7 @@ export const server = pgTable("server", {
 					exclude: [],
 				},
 			},
-		}),
+		})),
 });
 
 export const serverRelations = relations(server, ({ one, many }) => ({
@@ -121,6 +127,13 @@ const createSchema = createInsertSchema(server, {
 	serverId: z.string().min(1),
 	name: z.string().min(1),
 	description: z.string().optional(),
+	username: z
+		.string()
+		.min(1, "Username is required")
+		.refine(
+			(val) => val !== "root",
+			"Using 'root' as username is not allowed for security reasons. Please use a dedicated non-root user with appropriate sudo privileges.",
+		),
 });
 
 export const apiCreateServer = createSchema
@@ -159,7 +172,15 @@ export const apiUpdateServer = createSchema
 	.required()
 	.extend({
 		command: z.string().optional(),
-	});
+	})
+	.refine(
+		(data) => data.username !== "root",
+		{
+			message:
+				"Using 'root' as username is not allowed for security reasons. Please use a dedicated non-root user with appropriate sudo privileges.",
+			path: ["username"],
+		},
+	);
 
 export const apiUpdateServerMonitoring = createSchema
 	.pick({
@@ -172,7 +193,13 @@ export const apiUpdateServerMonitoring = createSchema
 				server: z.object({
 					refreshRate: z.number().min(2),
 					port: z.number().min(1),
-					token: z.string(),
+					token: z
+						.string()
+						.min(1, "Monitoring token is required for security")
+						.refine(
+							(val) => val.trim().length > 0,
+							"Monitoring token cannot be empty or whitespace only",
+						),
 					urlCallback: z.string().url(),
 					retentionDays: z.number().min(1),
 					cronJob: z.string().min(1),
