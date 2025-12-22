@@ -77,6 +77,33 @@ export const getS3Credentials = (destination: Destination) => {
 	return rcloneFlags;
 };
 
+/**
+ * Get S3 credentials as environment variables for rclone.
+ * This is more secure than passing credentials as CLI flags,
+ * as it prevents credentials from being exposed in process listings,
+ * error logs, and shell history.
+ */
+export const getS3CredentialsEnv = (destination: Destination): Record<string, string> => {
+	const { accessKey, secretAccessKey, region, endpoint, provider } =
+		destination;
+	
+	const env: Record<string, string> = {
+		RCLONE_CONFIG_S3_TYPE: "s3",
+		RCLONE_CONFIG_S3_ACCESS_KEY_ID: accessKey,
+		RCLONE_CONFIG_S3_SECRET_ACCESS_KEY: secretAccessKey,
+		RCLONE_CONFIG_S3_REGION: region,
+		RCLONE_CONFIG_S3_ENDPOINT: endpoint,
+		RCLONE_CONFIG_S3_NO_CHECK_BUCKET: "true",
+		RCLONE_CONFIG_S3_FORCE_PATH_STYLE: "true",
+	};
+
+	if (provider) {
+		env.RCLONE_CONFIG_S3_PROVIDER = provider;
+	}
+
+	return env;
+};
+
 export const getPostgresBackupCommand = (
 	database: string,
 	databaseUser: string,

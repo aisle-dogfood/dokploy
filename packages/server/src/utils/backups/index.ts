@@ -9,7 +9,7 @@ import {
 } from "../docker/utils";
 import { sendDockerCleanupNotifications } from "../notifications/docker-cleanup";
 import { execAsync, execAsyncRemote } from "../process/execAsync";
-import { getS3Credentials, scheduleBackup } from "./utils";
+import { getS3Credentials, getS3CredentialsEnv, scheduleBackup } from "./utils";
 
 import { member } from "@dokploy/server/db/schema";
 import type { BackupSchedule } from "@dokploy/server/services/backup";
@@ -102,26 +102,31 @@ export const keepLatestNBackups = async (
 	if (!backup.keepLatestCount) return;
 
 	try {
-		const rcloneFlags = getS3Credentials(backup.destination);
+		const rcloneEnv = getS3CredentialsEnv(backup.destination);
 		const backupFilesPath = path.join(
-			`:s3:${backup.destination.bucket}`,
+			`s3:/${backup.destination.bucket}`,
 			backup.prefix,
 		);
 
 		// --include "*.sql.gz" or "*.zip" ensures nothing else other than the dokploy backup files are touched by rclone
-		const rcloneList = `rclone lsf ${rcloneFlags.join(" ")} --include "*${backup.databaseType === "web-server" ? ".zip" : ".sql.gz"}" ${backupFilesPath}`;
+		const rcloneList = `rclone lsf --include "*${backup.databaseType === "web-server" ? ".zip" : ".sql.gz"}" ${backupFilesPath}`;
 		// when we pipe the above command with this one, we only get the list of files we want to delete
 		const sortAndPickUnwantedBackups = `sort -r | tail -n +$((${backup.keepLatestCount}+1)) | xargs -I{}`;
 		// this command deletes the files
 		// to test the deletion before actually deleting we can add --dry-run before ${backupFilesPath}/{}
-		const rcloneDelete = `rclone delete ${rcloneFlags.join(" ")} ${backupFilesPath}/{}`;
+		const rcloneDelete = `rclone delete ${backupFilesPath}/{}`;
 
 		const rcloneCommand = `${rcloneList} | ${sortAndPickUnwantedBackups} ${rcloneDelete}`;
 
 		if (serverId) {
-			await execAsyncRemote(serverId, rcloneCommand);
+			// For remote execution, prepend environment variable exports
+			const envExports = Object.entries(rcloneEnv)
+				.map(([key, value]) => `export ${key}="${value}"`)
+				.join("; ");
+			const remoteCommand = `${envExports}; ${rcloneCommand}`;
+			await execAsyncRemote(serverId, remoteCommand);
 		} else {
-			await execAsync(rcloneCommand);
+			await execAsync(rcloneCommand, { env: { ...process.env, ...rcloneEnv } });
 		}
 	} catch (error) {
 		console.error(error);
