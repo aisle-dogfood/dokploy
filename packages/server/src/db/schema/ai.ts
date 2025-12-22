@@ -51,6 +51,8 @@ export const apiUpdateAi = createSchema
 	.partial()
 	.extend({
 		aiId: z.string().min(1),
+		// Allow empty string for apiKey to indicate no change
+		apiKey: z.string().optional(),
 	})
 	.omit({ organizationId: true });
 

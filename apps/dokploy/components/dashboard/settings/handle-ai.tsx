@@ -35,7 +35,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-const Schema = z.object({
+const createSchema = z.object({
 	name: z.string().min(1, { message: "Name is required" }),
 	apiUrl: z.string().url({ message: "Please enter a valid URL" }),
 	apiKey: z.string().min(1, { message: "API Key is required" }),
@@ -43,7 +43,15 @@ const Schema = z.object({
 	isEnabled: z.boolean(),
 });
 
-type Schema = z.infer<typeof Schema>;
+const updateSchema = z.object({
+	name: z.string().min(1, { message: "Name is required" }),
+	apiUrl: z.string().url({ message: "Please enter a valid URL" }),
+	apiKey: z.string().optional(),
+	model: z.string().min(1, { message: "Model is required" }),
+	isEnabled: z.boolean(),
+});
+
+type Schema = z.infer<typeof createSchema>;
 
 interface Props {
 	aiId?: string;
@@ -66,7 +74,7 @@ export const HandleAi = ({ aiId }: Props) => {
 		: api.ai.create.useMutation();
 
 	const form = useForm<Schema>({
-		resolver: zodResolver(Schema),
+		resolver: zodResolver(aiId ? updateSchema : createSchema),
 		defaultValues: {
 			name: "",
 			apiUrl: "",
@@ -80,7 +88,8 @@ export const HandleAi = ({ aiId }: Props) => {
 		form.reset({
 			name: data?.name ?? "",
 			apiUrl: data?.apiUrl ?? "https://api.openai.com/v1",
-			apiKey: data?.apiKey ?? "",
+			// Don't populate API key from server for security - user must re-enter to change
+			apiKey: "",
 			model: data?.model ?? "gpt-3.5-turbo",
 			isEnabled: data?.isEnabled ?? true,
 		});
@@ -89,27 +98,45 @@ export const HandleAi = ({ aiId }: Props) => {
 	const apiUrl = form.watch("apiUrl");
 	const apiKey = form.watch("apiKey");
 
-	const { data: models, isLoading: isLoadingServerModels } =
-		api.ai.getModels.useQuery(
+	// Use server-side model fetching for existing AI configs
+	const { data: modelsForExistingAi, isLoading: isLoadingExistingModels } =
+		api.ai.getModelsForAi.useQuery(
 			{
-				apiUrl: apiUrl ?? "",
-				apiKey: apiKey ?? "",
+				aiId: aiId ?? "",
 			},
 			{
-				enabled: !!apiUrl && !!apiKey,
+				enabled: !!aiId,
 				onError: (error) => {
 					setError(`Failed to fetch models: ${error.message}`);
 				},
 			},
 		);
 
+	// Use client-provided credentials only for new AI configs
+	const { data: modelsForNewAi, isLoading: isLoadingNewModels } =
+		api.ai.getModels.useQuery(
+			{
+				apiUrl: apiUrl ?? "",
+				apiKey: apiKey ?? "",
+			},
+			{
+				enabled: !aiId && !!apiUrl && !!apiKey,
+				onError: (error) => {
+					setError(`Failed to fetch models: ${error.message}`);
+				},
+			},
+		);
+
+	const models = aiId ? modelsForExistingAi : modelsForNewAi;
+	const isLoadingServerModels = aiId ? isLoadingExistingModels : isLoadingNewModels;
+
 	useEffect(() => {
 		const apiUrl = form.watch("apiUrl");
 		const apiKey = form.watch("apiKey");
-		if (apiUrl && apiKey) {
+		if (!aiId && apiUrl && apiKey) {
 			form.setValue("model", "");
 		}
-	}, [form.watch("apiUrl"), form.watch("apiKey")]);
+	}, [aiId, form.watch("apiUrl"), form.watch("apiKey")]);
 
 	const onSubmit = async (data: Schema) => {
 		try {
@@ -198,10 +225,16 @@ export const HandleAi = ({ aiId }: Props) => {
 								<FormItem>
 									<FormLabel>API Key</FormLabel>
 									<FormControl>
-										<Input type="password" placeholder="sk-..." {...field} />
+										<Input 
+											type="password" 
+											placeholder={aiId ? "Leave empty to keep existing key" : "sk-..."} 
+											{...field} 
+										/>
 									</FormControl>
 									<FormDescription>
-										Your API key for authentication
+										{aiId 
+											? "Enter a new API key to update, or leave empty to keep the existing one"
+											: "Your API key for authentication"}
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
