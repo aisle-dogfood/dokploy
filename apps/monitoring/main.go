@@ -23,8 +23,13 @@ func main() {
 	cfg := config.GetMetricsConfig()
 	token := cfg.Server.Token
 	METRICS_URL_CALLBACK := cfg.Server.UrlCallback
-	log.Printf("Environment variables:")
-	log.Printf("METRICS_CONFIG: %s", os.Getenv("METRICS_CONFIG"))
+	log.Printf("Configuration loaded successfully:")
+	log.Printf("  Server Type: %s", cfg.Server.ServerType)
+	log.Printf("  Port: %d", cfg.Server.Port)
+	log.Printf("  Refresh Rate: %d", cfg.Server.RefreshRate)
+	log.Printf("  Retention Days: %d", cfg.Server.RetentionDays)
+	log.Printf("  Token: [REDACTED]")
+	log.Printf("  URL Callback: [REDACTED]")
 
 	if token == "" || METRICS_URL_CALLBACK == "" {
 		log.Fatal("token and urlCallback are required in the configuration")
