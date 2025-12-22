@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { findGitea, redirectWithError } from "./helper";
+import { generateOAuthState } from "./oauth-state";
 
 export default async function handler(
 	req: NextApiRequest,
@@ -21,6 +22,9 @@ export default async function handler(
 			return redirectWithError(res, "Incomplete OAuth configuration");
 		}
 
+		// Generate a cryptographically secure state parameter for CSRF protection
+		const state = generateOAuthState(giteaId as string);
+
 		// Generate the Gitea authorization URL
 		const authorizationUrl = new URL(`${gitea.giteaUrl}/login/oauth/authorize`);
 		authorizationUrl.searchParams.append("client_id", gitea.clientId as string);
@@ -30,7 +34,7 @@ export default async function handler(
 			gitea.redirectUri as string,
 		);
 		authorizationUrl.searchParams.append("scope", "read:user repo");
-		authorizationUrl.searchParams.append("state", giteaId as string);
+		authorizationUrl.searchParams.append("state", state);
 
 		// Redirect user to Gitea authorization URL
 		return res.redirect(307, authorizationUrl.toString());
