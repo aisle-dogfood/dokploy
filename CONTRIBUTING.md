@@ -61,6 +61,16 @@ pnpm install
 cp apps/dokploy/.env.example apps/dokploy/.env
 ```
 
+**Note**: The Postgres password is auto-generated during the setup process and stored in `.docker/.postgres-password` (development) or `/etc/dokploy/.postgres-password` (production). After running `pnpm run dokploy:setup`, you need to update your `.env` file with the generated password:
+
+```bash
+# Retrieve the generated password
+cat .docker/.postgres-password
+
+# Update DATABASE_URL in apps/dokploy/.env with the password
+# DATABASE_URL="postgres://dokploy:<PASSWORD_HERE>@localhost:5432/dokploy"
+```
+
 ## Requirements
 
 - [Docker](/GUIDES.md#docker)
