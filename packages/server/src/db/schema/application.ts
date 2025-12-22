@@ -371,7 +371,12 @@ const NetworkSwarmSchema = z.array(
 const LabelsSwarmSchema = z.record(z.string());
 
 const createSchema = createInsertSchema(applications, {
-	appName: z.string(),
+	appName: z
+		.string()
+		.regex(
+			/^[a-zA-Z0-9._-]+$/,
+			"appName must contain only alphanumeric characters, dots, underscores, and hyphens",
+		),
 	createdAt: z.string(),
 	applicationId: z.string(),
 	autoDeploy: z.boolean(),

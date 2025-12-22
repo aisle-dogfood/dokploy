@@ -20,6 +20,18 @@ import {
 import { execAsync, execAsyncRemote } from "../process/execAsync";
 import { spawnAsync } from "../process/spawnAsync";
 
+/**
+ * Validates that appName contains only safe characters to prevent command injection.
+ * Only allows alphanumeric characters, dots, underscores, and hyphens.
+ */
+const validateAppName = (appName: string): void => {
+	if (!/^[a-zA-Z0-9._-]+$/.test(appName)) {
+		throw new Error(
+			"Invalid appName: must contain only alphanumeric characters, dots, underscores, and hyphens",
+		);
+	}
+};
+
 export type ComposeNested = InferResultType<
 	"compose",
 	{ project: true; mounts: true; domains: true }
@@ -28,15 +40,33 @@ export const buildCompose = async (compose: ComposeNested, logPath: string) => {
 	const writeStream = createWriteStream(logPath, { flags: "a" });
 	const { sourceType, appName, mounts, composeType, domains } = compose;
 	try {
+		// Validate appName to prevent command injection
+		validateAppName(appName);
+		
 		const { COMPOSE_PATH } = paths();
 		const command = createCommand(compose);
 		await writeDomainsToCompose(compose, domains);
 		createEnvFile(compose);
 
 		if (compose.isolatedDeployment) {
-			await execAsync(
-				`docker network inspect ${compose.appName} >/dev/null 2>&1 || docker network create ${composeType === "stack" ? "--driver overlay" : ""} --attachable ${compose.appName}`,
-			);
+			// Check if network exists
+			let networkExists = false;
+			try {
+				await spawnAsync("docker", ["network", "inspect", appName]);
+				networkExists = true;
+			} catch {
+				// Network doesn't exist, will create it
+			}
+
+			// Create network if it doesn't exist
+			if (!networkExists) {
+				const createArgs = ["network", "create", "--attachable"];
+				if (composeType === "stack") {
+					createArgs.push("--driver", "overlay");
+				}
+				createArgs.push(appName);
+				await spawnAsync("docker", createArgs);
+			}
 		}
 
 		const logContent = `
@@ -79,9 +109,23 @@ export const buildCompose = async (compose: ComposeNested, logPath: string) => {
 		);
 
 		if (compose.isolatedDeployment) {
-			await execAsync(
-				`docker network connect ${compose.appName} $(docker ps --filter "name=dokploy-traefik" -q) >/dev/null 2>&1`,
-			).catch(() => {});
+			try {
+				// Get the Traefik container ID
+				const result = await spawnAsync("docker", [
+					"ps",
+					"--filter",
+					"name=dokploy-traefik",
+					"-q",
+				]);
+				const containerId = result.toString().trim();
+				
+				// Connect the network to the Traefik container if it exists
+				if (containerId) {
+					await spawnAsync("docker", ["network", "connect", appName, containerId]);
+				}
+			} catch {
+				// Silently ignore errors connecting to Traefik network
+			}
 		}
 
 		writeStream.write("Docker Compose Deployed: ✅");
@@ -97,6 +141,9 @@ export const getBuildComposeCommand = async (
 	compose: ComposeNested,
 	logPath: string,
 ) => {
+	// Validate appName to prevent command injection
+	validateAppName(compose.appName);
+	
 	const { COMPOSE_PATH } = paths(true);
 	const { sourceType, appName, mounts, composeType, domains } = compose;
 	const command = createCommand(compose);
@@ -127,6 +174,9 @@ Compose Type: ${composeType} ✅`;
 		borderStyle: "double",
 	});
 
+	// Properly quote appName to prevent shell injection
+	const quotedAppName = `"${compose.appName}"`;
+	
 	const bashCommand = `
 	set -e
 	{
@@ -139,9 +189,9 @@ Compose Type: ${composeType} ✅`;
 		cd "${projectPath}";
 
         ${exportEnvCommand}
-		${compose.isolatedDeployment ? `docker network inspect ${compose.appName} >/dev/null 2>&1 || docker network create --attachable ${compose.appName}` : ""}
+		${compose.isolatedDeployment ? `docker network inspect ${quotedAppName} >/dev/null 2>&1 || docker network create --attachable ${quotedAppName}` : ""}
 		docker ${command.split(" ").join(" ")} >> "${logPath}" 2>&1 || { echo "Error: ❌ Docker command failed" >> "${logPath}"; exit 1; }
-		${compose.isolatedDeployment ? `docker network connect ${compose.appName} $(docker ps --filter "name=dokploy-traefik" -q) >/dev/null 2>&1` : ""}
+		${compose.isolatedDeployment ? `docker network connect ${quotedAppName} $(docker ps --filter "name=dokploy-traefik" -q) >/dev/null 2>&1` : ""}
 	
 		echo "Docker Compose Deployed: ✅" >> "${logPath}"
 	} || {
