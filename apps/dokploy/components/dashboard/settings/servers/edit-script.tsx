@@ -109,7 +109,9 @@ export const EditScript = ({ serverId }: Props) => {
 
 					<AlertBlock type="warning">
 						We recommend not modifying this script unless you know what you are
-						doing.
+						doing. For security reasons, only predefined setup scripts matching
+						safe patterns are allowed. Custom commands are validated to prevent
+						command injection attacks.
 					</AlertBlock>
 				</DialogHeader>
 				<div className="grid gap-4">
