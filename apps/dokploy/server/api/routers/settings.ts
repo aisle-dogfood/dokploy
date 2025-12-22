@@ -417,6 +417,15 @@ export const settingsRouter = createTRPCRouter({
 						throw new TRPCError({ code: "UNAUTHORIZED" });
 					}
 				}
+
+				if (input?.serverId) {
+					const server = await findServerById(input.serverId);
+
+					if (server.organizationId !== ctx.session?.activeOrganizationId) {
+						throw new TRPCError({ code: "UNAUTHORIZED" });
+					}
+				}
+
 				const { MAIN_TRAEFIK_PATH } = paths(!!input?.serverId);
 				const result = await readDirectory(MAIN_TRAEFIK_PATH, input?.serverId);
 				return result || [];
