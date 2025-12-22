@@ -65,7 +65,22 @@ echo "Pulling ${dockerImage}" >> ${logPath};
 
 		if (username && password) {
 			command += `
-if ! echo "${password}" | docker login --username "${username}" --password-stdin "${registryUrl || ""}" >> ${logPath} 2>&1; then
+TEMP_PASSWORD_FILE=\$(mktemp) || {
+	echo "❌ Failed to create temporary password file" >> ${logPath};
+	exit 1;
+}
+chmod 600 "\$TEMP_PASSWORD_FILE" || {
+	rm -f "\$TEMP_PASSWORD_FILE";
+	echo "❌ Failed to set secure permissions on password file" >> ${logPath};
+	exit 1;
+}
+cat > "\$TEMP_PASSWORD_FILE" << 'DOKPLOY_PASSWORD_EOF'
+${password}
+DOKPLOY_PASSWORD_EOF
+docker login --username "${username}" --password-stdin "${registryUrl || ""}" < "\$TEMP_PASSWORD_FILE" >> ${logPath} 2>&1
+LOGIN_RESULT=\$?
+rm -f "\$TEMP_PASSWORD_FILE"
+if [ \$LOGIN_RESULT -ne 0 ]; then
 	echo "❌ Login failed" >> ${logPath};
 	exit 1;
 fi
