@@ -10,6 +10,7 @@ import { nanoid } from "nanoid";
 import { projects } from "./project";
 import { server } from "./server";
 import { users_temp } from "./user";
+import { encryptedText } from "./encrypted-fields";
 
 export const account = pgTable("account", {
 	id: text("id")
@@ -22,9 +23,9 @@ export const account = pgTable("account", {
 	userId: text("user_id")
 		.notNull()
 		.references(() => users_temp.id, { onDelete: "cascade" }),
-	accessToken: text("access_token"),
-	refreshToken: text("refresh_token"),
-	idToken: text("id_token"),
+	accessToken: encryptedText("access_token"),
+	refreshToken: encryptedText("refresh_token"),
+	idToken: encryptedText("id_token"),
 	accessTokenExpiresAt: timestamp("access_token_expires_at"),
 	refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
 	scope: text("scope"),
@@ -32,9 +33,9 @@ export const account = pgTable("account", {
 	is2FAEnabled: boolean("is2FAEnabled").notNull().default(false),
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
-	resetPasswordToken: text("resetPasswordToken"),
+	resetPasswordToken: encryptedText("resetPasswordToken"),
 	resetPasswordExpiresAt: text("resetPasswordExpiresAt"),
-	confirmationToken: text("confirmationToken"),
+	confirmationToken: encryptedText("confirmationToken"),
 	confirmationExpiresAt: text("confirmationExpiresAt"),
 });
 
@@ -153,8 +154,8 @@ export const invitationRelations = relations(invitation, ({ one }) => ({
 
 export const twoFactor = pgTable("two_factor", {
 	id: text("id").primaryKey(),
-	secret: text("secret").notNull(),
-	backupCodes: text("backup_codes").notNull(),
+	secret: encryptedText("secret").notNull(),
+	backupCodes: encryptedText("backup_codes").notNull(),
 	userId: text("user_id")
 		.notNull()
 		.references(() => users_temp.id, { onDelete: "cascade" }),
@@ -165,7 +166,7 @@ export const apikey = pgTable("apikey", {
 	name: text("name"),
 	start: text("start"),
 	prefix: text("prefix"),
-	key: text("key").notNull(),
+	key: encryptedText("key").notNull(),
 	userId: text("user_id")
 		.notNull()
 		.references(() => users_temp.id, { onDelete: "cascade" }),
