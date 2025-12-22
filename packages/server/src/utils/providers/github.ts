@@ -12,6 +12,7 @@ import type { apiFindGithubBranches } from "@dokploy/server/db/schema";
 import type { Compose } from "@dokploy/server/services/compose";
 import { type Github, findGithubById } from "@dokploy/server/services/github";
 import { execAsyncRemote } from "../process/execAsync";
+import { escapeShellArg } from "../process/shellEscape";
 
 export const authGithub = (githubProvider: Github): Octokit => {
 	if (!haveGithubRequirements(githubProvider)) {
@@ -223,7 +224,7 @@ export const getGithubCloneCommand = async ({
 
 	if (!githubId) {
 		const command = `
-			echo  "Error: ❌ Github Provider not found" >> ${logPath};
+			echo  "Error: ❌ Github Provider not found" >> ${escapeShellArg(logPath)};
 			exit 1;
 		`;
 
@@ -248,7 +249,7 @@ export const getGithubCloneCommand = async ({
 			.replace(/\n/g, "\\n");
 
 		const bashCommand = `
-            echo "${escapedLogMessages}" >> ${logPath};
+            echo "${escapedLogMessages}" >> ${escapeShellArg(logPath)};
             exit 1;  # Exit with error code
         `;
 
@@ -265,13 +266,13 @@ export const getGithubCloneCommand = async ({
 	const cloneUrl = `https://oauth2:${token}@${repoclone}`;
 
 	const cloneCommand = `
-rm -rf ${outputPath};
-mkdir -p ${outputPath};
-if ! git clone --branch ${branch} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} --progress ${cloneUrl} ${outputPath} >> ${logPath} 2>&1; then
-	echo "❌ [ERROR] Fail to clone repository ${repoclone}" >> ${logPath};
+rm -rf ${escapeShellArg(outputPath)};
+mkdir -p ${escapeShellArg(outputPath)};
+if ! git clone --branch ${escapeShellArg(branch)} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} --progress ${escapeShellArg(cloneUrl)} ${escapeShellArg(outputPath)} >> ${escapeShellArg(logPath)} 2>&1; then
+	echo "❌ [ERROR] Fail to clone repository ${repoclone}" >> ${escapeShellArg(logPath)};
 	exit 1;
 fi
-echo "Cloned ${repoclone} to ${outputPath}: ✅" >> ${logPath};
+echo "Cloned ${repoclone} to ${outputPath}: ✅" >> ${escapeShellArg(logPath)};
 	`;
 
 	return cloneCommand;
@@ -348,8 +349,8 @@ export const cloneRawGithubRepositoryRemote = async (compose: Compose) => {
 	const cloneUrl = `https://oauth2:${token}@${repoclone}`;
 	try {
 		const command = `
-			rm -rf ${outputPath};
-			git clone --branch ${branch} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} ${cloneUrl} ${outputPath}
+			rm -rf ${escapeShellArg(outputPath)};
+			git clone --branch ${escapeShellArg(branch)} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} ${escapeShellArg(cloneUrl)} ${escapeShellArg(outputPath)}
 		`;
 		await execAsyncRemote(serverId, command);
 	} catch (error) {

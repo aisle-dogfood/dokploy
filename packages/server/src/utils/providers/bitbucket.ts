@@ -12,6 +12,7 @@ import { TRPCError } from "@trpc/server";
 import { recreateDirectory } from "../filesystem/directory";
 import { execAsyncRemote } from "../process/execAsync";
 import { spawnAsync } from "../process/spawnAsync";
+import { escapeShellArg } from "../process/shellEscape";
 
 export type ApplicationWithBitbucket = InferResultType<
 	"applications",
@@ -157,8 +158,8 @@ export const cloneRawBitbucketRepositoryRemote = async (compose: Compose) => {
 
 	try {
 		const cloneCommand = `
-			rm -rf ${outputPath};
-			git clone --branch ${bitbucketBranch} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} ${cloneUrl} ${outputPath}
+			rm -rf ${escapeShellArg(outputPath)};
+			git clone --branch ${escapeShellArg(bitbucketBranch)} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} ${escapeShellArg(cloneUrl)} ${escapeShellArg(outputPath)}
 		`;
 		await execAsyncRemote(serverId, cloneCommand);
 	} catch (error) {
@@ -191,7 +192,7 @@ export const getBitbucketCloneCommand = async (
 
 	if (!bitbucketId) {
 		const command = `
-			echo  "Error: ❌ Bitbucket Provider not found" >> ${logPath};
+			echo  "Error: ❌ Bitbucket Provider not found" >> ${escapeShellArg(logPath)};
 			exit 1;
 		`;
 		await execAsyncRemote(serverId, command);
@@ -209,13 +210,13 @@ export const getBitbucketCloneCommand = async (
 	const cloneUrl = `https://${bitbucketProvider?.bitbucketUsername}:${bitbucketProvider?.appPassword}@${repoclone}`;
 
 	const cloneCommand = `
-rm -rf ${outputPath};
-mkdir -p ${outputPath};
-if ! git clone --branch ${bitbucketBranch} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} --progress ${cloneUrl} ${outputPath} >> ${logPath} 2>&1; then
-	echo "❌ [ERROR] Fail to clone the repository ${repoclone}" >> ${logPath};
+rm -rf ${escapeShellArg(outputPath)};
+mkdir -p ${escapeShellArg(outputPath)};
+if ! git clone --branch ${escapeShellArg(bitbucketBranch)} --depth 1 ${enableSubmodules ? "--recurse-submodules" : ""} --progress ${escapeShellArg(cloneUrl)} ${escapeShellArg(outputPath)} >> ${escapeShellArg(logPath)} 2>&1; then
+	echo "❌ [ERROR] Fail to clone the repository ${repoclone}" >> ${escapeShellArg(logPath)};
 	exit 1;
 fi
-echo "Cloned ${repoclone} to ${outputPath}: ✅" >> ${logPath};
+echo "Cloned ${repoclone} to ${outputPath}: ✅" >> ${escapeShellArg(logPath)};
 	`;
 
 	return cloneCommand;
