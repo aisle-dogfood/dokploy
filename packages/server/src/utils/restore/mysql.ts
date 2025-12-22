@@ -2,7 +2,7 @@ import type { apiRestoreBackup } from "@dokploy/server/db/schema";
 import type { Destination } from "@dokploy/server/services/destination";
 import type { MySql } from "@dokploy/server/services/mysql";
 import type { z } from "zod";
-import { getS3Credentials } from "../backups/utils";
+import { getS3Credentials, getS3CredentialsEnv } from "../backups/utils";
 import { execAsync, execAsyncRemote } from "../process/execAsync";
 import { getRestoreCommand } from "./utils";
 
@@ -15,11 +15,11 @@ export const restoreMySqlBackup = async (
 	try {
 		const { appName, databaseRootPassword, serverId } = mysql;
 
-		const rcloneFlags = getS3Credentials(destination);
-		const bucketPath = `:s3:${destination.bucket}`;
+		const rcloneEnv = getS3CredentialsEnv(destination);
+		const bucketPath = `s3:/${destination.bucket}`;
 		const backupPath = `${bucketPath}/${backupInput.backupFile}`;
 
-		const rcloneCommand = `rclone cat ${rcloneFlags.join(" ")} "${backupPath}" | gunzip`;
+		const rcloneCommand = `rclone cat "${backupPath}" | gunzip`;
 
 		const command = getRestoreCommand({
 			appName,
@@ -34,12 +34,17 @@ export const restoreMySqlBackup = async (
 
 		emit("Starting restore...");
 
-		emit(`Executing command: ${command}`);
+		emit(`Executing restore command`);
 
 		if (serverId) {
-			await execAsyncRemote(serverId, command);
+			// For remote execution, prepend environment variable exports
+			const envExports = Object.entries(rcloneEnv)
+				.map(([key, value]) => `export ${key}="${value}"`)
+				.join("; ");
+			const remoteCommand = `${envExports}; ${command}`;
+			await execAsyncRemote(serverId, remoteCommand);
 		} else {
-			await execAsync(command);
+			await execAsync(command, { env: { ...process.env, ...rcloneEnv } });
 		}
 
 		emit("Restore completed successfully!");

@@ -3,7 +3,7 @@ import { paths } from "@dokploy/server/constants";
 import { findComposeById } from "@dokploy/server/services/compose";
 import type { findVolumeBackupById } from "@dokploy/server/services/volume-backups";
 import { normalizeS3Path } from "../backups/utils";
-import { getS3Credentials } from "../backups/utils";
+import { getS3Credentials, getS3CredentialsEnv } from "../backups/utils";
 
 export const backupVolume = async (
 	volumeBackup: Awaited<ReturnType<typeof findVolumeBackupById>>,
@@ -15,14 +15,20 @@ export const backupVolume = async (
 	const destination = volumeBackup.destination;
 	const backupFileName = `${volumeName}-${new Date().toISOString()}.tar`;
 	const bucketDestination = `${normalizeS3Path(prefix)}${backupFileName}`;
-	const rcloneFlags = getS3Credentials(volumeBackup.destination);
-	const rcloneDestination = `:s3:${destination.bucket}/${bucketDestination}`;
+	const rcloneEnv = getS3CredentialsEnv(volumeBackup.destination);
+	const rcloneDestination = `s3:/${destination.bucket}/${bucketDestination}`;
 	const volumeBackupPath = path.join(VOLUME_BACKUPS_PATH, volumeBackup.appName);
 
-	const rcloneCommand = `rclone copyto ${rcloneFlags.join(" ")} "${volumeBackupPath}/${backupFileName}" "${rcloneDestination}"`;
+	// Export environment variables for rclone
+	const envExports = Object.entries(rcloneEnv)
+		.map(([key, value]) => `export ${key}="${value}"`)
+		.join("\n");
+
+	const rcloneCommand = `rclone copyto "${volumeBackupPath}/${backupFileName}" "${rcloneDestination}"`;
 
 	const baseCommand = `
 	set -e
+	${envExports}
 	echo "Volume name: ${volumeName}"
 	echo "Backup file name: ${backupFileName}"
 	echo "Turning off volume backup: ${turnOff ? "Yes" : "No"}"

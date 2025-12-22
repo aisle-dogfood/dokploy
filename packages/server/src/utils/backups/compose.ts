@@ -7,7 +7,7 @@ import {
 import { findProjectById } from "@dokploy/server/services/project";
 import { sendDatabaseBackupNotifications } from "../notifications/database-backup";
 import { execAsync, execAsyncRemote } from "../process/execAsync";
-import { getBackupCommand, getS3Credentials, normalizeS3Path } from "./utils";
+import { getBackupCommand, getS3Credentials, getS3CredentialsEnv, normalizeS3Path } from "./utils";
 
 export const runComposeBackup = async (
 	compose: Compose,
@@ -26,9 +26,9 @@ export const runComposeBackup = async (
 	});
 
 	try {
-		const rcloneFlags = getS3Credentials(destination);
-		const rcloneDestination = `:s3:${destination.bucket}/${bucketDestination}`;
-		const rcloneCommand = `rclone rcat ${rcloneFlags.join(" ")} "${rcloneDestination}"`;
+		const rcloneEnv = getS3CredentialsEnv(destination);
+		const rcloneDestination = `s3:/${destination.bucket}/${bucketDestination}`;
+		const rcloneCommand = `rclone rcat "${rcloneDestination}"`;
 
 		const backupCommand = getBackupCommand(
 			backup,
@@ -36,10 +36,16 @@ export const runComposeBackup = async (
 			deployment.logPath,
 		);
 		if (compose.serverId) {
-			await execAsyncRemote(compose.serverId, backupCommand);
+			// For remote execution, prepend environment variable exports
+			const envExports = Object.entries(rcloneEnv)
+				.map(([key, value]) => `export ${key}="${value}"`)
+				.join("; ");
+			const remoteCommand = `${envExports}; ${backupCommand}`;
+			await execAsyncRemote(compose.serverId, remoteCommand);
 		} else {
 			await execAsync(backupCommand, {
 				shell: "/bin/bash",
+				env: { ...process.env, ...rcloneEnv },
 			});
 		}
 

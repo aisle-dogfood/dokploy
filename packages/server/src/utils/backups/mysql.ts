@@ -7,7 +7,7 @@ import type { MySql } from "@dokploy/server/services/mysql";
 import { findProjectById } from "@dokploy/server/services/project";
 import { sendDatabaseBackupNotifications } from "../notifications/database-backup";
 import { execAsync, execAsyncRemote } from "../process/execAsync";
-import { getBackupCommand, getS3Credentials, normalizeS3Path } from "./utils";
+import { getBackupCommand, getS3Credentials, getS3CredentialsEnv, normalizeS3Path } from "./utils";
 
 export const runMySqlBackup = async (mysql: MySql, backup: BackupSchedule) => {
 	const { projectId, name } = mysql;
@@ -23,10 +23,10 @@ export const runMySqlBackup = async (mysql: MySql, backup: BackupSchedule) => {
 	});
 
 	try {
-		const rcloneFlags = getS3Credentials(destination);
-		const rcloneDestination = `:s3:${destination.bucket}/${bucketDestination}`;
+		const rcloneEnv = getS3CredentialsEnv(destination);
+		const rcloneDestination = `s3:/${destination.bucket}/${bucketDestination}`;
 
-		const rcloneCommand = `rclone rcat ${rcloneFlags.join(" ")} "${rcloneDestination}"`;
+		const rcloneCommand = `rclone rcat "${rcloneDestination}"`;
 
 		const backupCommand = getBackupCommand(
 			backup,
@@ -35,10 +35,16 @@ export const runMySqlBackup = async (mysql: MySql, backup: BackupSchedule) => {
 		);
 
 		if (mysql.serverId) {
-			await execAsyncRemote(mysql.serverId, backupCommand);
+			// For remote execution, prepend environment variable exports
+			const envExports = Object.entries(rcloneEnv)
+				.map(([key, value]) => `export ${key}="${value}"`)
+				.join("; ");
+			const remoteCommand = `${envExports}; ${backupCommand}`;
+			await execAsyncRemote(mysql.serverId, remoteCommand);
 		} else {
 			await execAsync(backupCommand, {
 				shell: "/bin/bash",
+				env: { ...process.env, ...rcloneEnv },
 			});
 		}
 		await sendDatabaseBackupNotifications({

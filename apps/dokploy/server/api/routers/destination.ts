@@ -46,19 +46,20 @@ export const destinationRouter = createTRPCRouter({
 			const { secretAccessKey, bucket, region, endpoint, accessKey, provider } =
 				input;
 			try {
-				const rcloneFlags = [
-					`--s3-access-key-id=${accessKey}`,
-					`--s3-secret-access-key=${secretAccessKey}`,
-					`--s3-region=${region}`,
-					`--s3-endpoint=${endpoint}`,
-					"--s3-no-check-bucket",
-					"--s3-force-path-style",
-				];
+				const rcloneEnv: Record<string, string> = {
+					RCLONE_CONFIG_S3_TYPE: "s3",
+					RCLONE_CONFIG_S3_ACCESS_KEY_ID: accessKey,
+					RCLONE_CONFIG_S3_SECRET_ACCESS_KEY: secretAccessKey,
+					RCLONE_CONFIG_S3_REGION: region,
+					RCLONE_CONFIG_S3_ENDPOINT: endpoint,
+					RCLONE_CONFIG_S3_NO_CHECK_BUCKET: "true",
+					RCLONE_CONFIG_S3_FORCE_PATH_STYLE: "true",
+				};
 				if (provider) {
-					rcloneFlags.unshift(`--s3-provider=${provider}`);
+					rcloneEnv.RCLONE_CONFIG_S3_PROVIDER = provider;
 				}
-				const rcloneDestination = `:s3:${bucket}`;
-				const rcloneCommand = `rclone ls ${rcloneFlags.join(" ")} "${rcloneDestination}"`;
+				const rcloneDestination = `s3:/${bucket}`;
+				const rcloneCommand = `rclone ls "${rcloneDestination}"`;
 
 				if (IS_CLOUD && !input.serverId) {
 					throw new TRPCError({
@@ -68,9 +69,14 @@ export const destinationRouter = createTRPCRouter({
 				}
 
 				if (IS_CLOUD) {
-					await execAsyncRemote(input.serverId || "", rcloneCommand);
+					// For remote execution, prepend environment variable exports
+					const envExports = Object.entries(rcloneEnv)
+						.map(([key, value]) => `export ${key}="${value}"`)
+						.join("; ");
+					const remoteCommand = `${envExports}; ${rcloneCommand}`;
+					await execAsyncRemote(input.serverId || "", remoteCommand);
 				} else {
-					await execAsync(rcloneCommand);
+					await execAsync(rcloneCommand, { env: { ...process.env, ...rcloneEnv } });
 				}
 			} catch (error) {
 				throw new TRPCError({

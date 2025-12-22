@@ -38,6 +38,7 @@ import { findDestinationById } from "@dokploy/server/services/destination";
 import { runComposeBackup } from "@dokploy/server/utils/backups/compose";
 import {
 	getS3Credentials,
+	getS3CredentialsEnv,
 	normalizeS3Path,
 } from "@dokploy/server/utils/backups/utils";
 import {
@@ -299,8 +300,8 @@ export const backupRouter = createTRPCRouter({
 		.query(async ({ input }) => {
 			try {
 				const destination = await findDestinationById(input.destinationId);
-				const rcloneFlags = getS3Credentials(destination);
-				const bucketPath = `:s3:${destination.bucket}`;
+				const rcloneEnv = getS3CredentialsEnv(destination);
+				const bucketPath = "s3:";
 
 				const lastSlashIndex = input.search.lastIndexOf("/");
 				const baseDir =
@@ -312,16 +313,21 @@ export const backupRouter = createTRPCRouter({
 						? input.search.slice(lastSlashIndex + 1)
 						: input.search;
 
-				const searchPath = baseDir ? `${bucketPath}/${baseDir}` : bucketPath;
-				const listCommand = `rclone lsjson ${rcloneFlags.join(" ")} "${searchPath}" --no-mimetype --no-modtime 2>/dev/null`;
+				const searchPath = baseDir ? `${bucketPath}/${destination.bucket}/${baseDir}` : `${bucketPath}/${destination.bucket}`;
+				const listCommand = `rclone lsjson "${searchPath}" --no-mimetype --no-modtime 2>/dev/null`;
 
 				let stdout = "";
 
 				if (input.serverId) {
-					const result = await execAsyncRemote(input.serverId, listCommand);
+					// For remote execution, we need to export env vars in the command
+					const envExports = Object.entries(rcloneEnv)
+						.map(([key, value]) => `export ${key}="${value}"`)
+						.join("; ");
+					const remoteCommand = `${envExports}; ${listCommand}`;
+					const result = await execAsyncRemote(input.serverId, remoteCommand);
 					stdout = result.stdout;
 				} else {
-					const result = await execAsync(listCommand);
+					const result = await execAsync(listCommand, { env: { ...process.env, ...rcloneEnv } });
 					stdout = result.stdout;
 				}
 
