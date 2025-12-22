@@ -1,5 +1,5 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
+import { SecureConnectionUrlInput } from "@/components/shared/secure-connection-url-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -49,7 +49,8 @@ export const ShowExternalMysqlCredentials = ({ mysqlId }: Props) => {
 	const { data: ip } = api.settings.getIp.useQuery();
 	const { data, refetch } = api.mysql.one.useQuery({ mysqlId });
 	const { mutateAsync, isLoading } = api.mysql.saveExternalPort.useMutation();
-	const [connectionUrl, setConnectionUrl] = useState("");
+	const [maskedConnectionUrl, setMaskedConnectionUrl] = useState("");
+	const [actualConnectionUrl, setActualConnectionUrl] = useState("");
 	const getIp = data?.server?.ipAddress || ip;
 	const form = useForm<DockerProvider>({
 		defaultValues: {},
@@ -81,11 +82,14 @@ export const ShowExternalMysqlCredentials = ({ mysqlId }: Props) => {
 	useEffect(() => {
 		const buildConnectionUrl = () => {
 			const port = form.watch("externalPort") || data?.externalPort;
-
-			return `mysql://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
+			const actualUrl = `mysql://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
+			const maskedUrl = `mysql://${data?.databaseUser}:${"*".repeat(8)}@${getIp}:${port}/${data?.databaseName}`;
+			
+			setActualConnectionUrl(actualUrl);
+			setMaskedConnectionUrl(maskedUrl);
 		};
 
-		setConnectionUrl(buildConnectionUrl());
+		buildConnectionUrl();
 	}, [
 		data?.appName,
 		data?.externalPort,
@@ -154,7 +158,11 @@ export const ShowExternalMysqlCredentials = ({ mysqlId }: Props) => {
 									<div className="grid w-full gap-8">
 										<div className="flex flex-col gap-3">
 											<Label>External Host</Label>
-											<ToggleVisibilityInput disabled value={connectionUrl} />
+											<SecureConnectionUrlInput 
+												maskedValue={maskedConnectionUrl} 
+												actualValue={actualConnectionUrl}
+												disabled 
+											/>
 										</div>
 									</div>
 								)}

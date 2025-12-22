@@ -1,5 +1,5 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
+import { SecureConnectionUrlInput } from "@/components/shared/secure-connection-url-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -49,7 +49,8 @@ export const ShowExternalRedisCredentials = ({ redisId }: Props) => {
 	const { data: ip } = api.settings.getIp.useQuery();
 	const { data, refetch } = api.redis.one.useQuery({ redisId });
 	const { mutateAsync, isLoading } = api.redis.saveExternalPort.useMutation();
-	const [connectionUrl, setConnectionUrl] = useState("");
+	const [maskedConnectionUrl, setMaskedConnectionUrl] = useState("");
+	const [actualConnectionUrl, setActualConnectionUrl] = useState("");
 	const getIp = data?.server?.ipAddress || ip;
 
 	const form = useForm<DockerProvider>({
@@ -81,13 +82,15 @@ export const ShowExternalRedisCredentials = ({ redisId }: Props) => {
 
 	useEffect(() => {
 		const buildConnectionUrl = () => {
-			const _hostname = window.location.hostname;
 			const port = form.watch("externalPort") || data?.externalPort;
-
-			return `redis://default:${data?.databasePassword}@${getIp}:${port}`;
+			const actualUrl = `redis://default:${data?.databasePassword}@${getIp}:${port}`;
+			const maskedUrl = `redis://default:${"*".repeat(8)}@${getIp}:${port}`;
+			
+			setActualConnectionUrl(actualUrl);
+			setMaskedConnectionUrl(maskedUrl);
 		};
 
-		setConnectionUrl(buildConnectionUrl());
+		buildConnectionUrl();
 	}, [data?.appName, data?.externalPort, data?.databasePassword, form, getIp]);
 	return (
 		<>
@@ -148,7 +151,11 @@ export const ShowExternalRedisCredentials = ({ redisId }: Props) => {
 									<div className="grid w-full gap-8">
 										<div className="flex flex-col gap-3">
 											<Label>External Host</Label>
-											<ToggleVisibilityInput value={connectionUrl} disabled />
+											<SecureConnectionUrlInput 
+												maskedValue={maskedConnectionUrl} 
+												actualValue={actualConnectionUrl}
+												disabled 
+											/>
 										</div>
 									</div>
 								)}

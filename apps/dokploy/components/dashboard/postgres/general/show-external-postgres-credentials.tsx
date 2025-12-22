@@ -1,5 +1,5 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
+import { SecureConnectionUrlInput } from "@/components/shared/secure-connection-url-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -51,7 +51,8 @@ export const ShowExternalPostgresCredentials = ({ postgresId }: Props) => {
 	const { mutateAsync, isLoading } =
 		api.postgres.saveExternalPort.useMutation();
 	const getIp = data?.server?.ipAddress || ip;
-	const [connectionUrl, setConnectionUrl] = useState("");
+	const [maskedConnectionUrl, setMaskedConnectionUrl] = useState("");
+	const [actualConnectionUrl, setActualConnectionUrl] = useState("");
 
 	const form = useForm<DockerProvider>({
 		defaultValues: {},
@@ -83,11 +84,14 @@ export const ShowExternalPostgresCredentials = ({ postgresId }: Props) => {
 	useEffect(() => {
 		const buildConnectionUrl = () => {
 			const port = form.watch("externalPort") || data?.externalPort;
-
-			return `postgresql://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
+			const actualUrl = `postgresql://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
+			const maskedUrl = `postgresql://${data?.databaseUser}:${"*".repeat(8)}@${getIp}:${port}/${data?.databaseName}`;
+			
+			setActualConnectionUrl(actualUrl);
+			setMaskedConnectionUrl(maskedUrl);
 		};
 
-		setConnectionUrl(buildConnectionUrl());
+		buildConnectionUrl();
 	}, [
 		data?.appName,
 		data?.externalPort,
@@ -156,7 +160,11 @@ export const ShowExternalPostgresCredentials = ({ postgresId }: Props) => {
 									<div className="grid w-full gap-8">
 										<div className="flex flex-col gap-3">
 											<Label>External Host</Label>
-											<ToggleVisibilityInput value={connectionUrl} disabled />
+											<SecureConnectionUrlInput 
+												maskedValue={maskedConnectionUrl} 
+												actualValue={actualConnectionUrl}
+												disabled 
+											/>
 										</div>
 									</div>
 								)}

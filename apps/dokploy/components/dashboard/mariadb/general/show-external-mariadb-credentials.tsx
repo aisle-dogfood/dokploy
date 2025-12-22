@@ -1,5 +1,5 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
+import { SecureConnectionUrlInput } from "@/components/shared/secure-connection-url-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -49,7 +49,8 @@ export const ShowExternalMariadbCredentials = ({ mariadbId }: Props) => {
 	const { data: ip } = api.settings.getIp.useQuery();
 	const { data, refetch } = api.mariadb.one.useQuery({ mariadbId });
 	const { mutateAsync, isLoading } = api.mariadb.saveExternalPort.useMutation();
-	const [connectionUrl, setConnectionUrl] = useState("");
+	const [maskedConnectionUrl, setMaskedConnectionUrl] = useState("");
+	const [actualConnectionUrl, setActualConnectionUrl] = useState("");
 	const getIp = data?.server?.ipAddress || ip;
 	const form = useForm<DockerProvider>({
 		defaultValues: {},
@@ -81,11 +82,14 @@ export const ShowExternalMariadbCredentials = ({ mariadbId }: Props) => {
 	useEffect(() => {
 		const buildConnectionUrl = () => {
 			const port = form.watch("externalPort") || data?.externalPort;
-
-			return `mariadb://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
+			const actualUrl = `mariadb://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
+			const maskedUrl = `mariadb://${data?.databaseUser}:${"*".repeat(8)}@${getIp}:${port}/${data?.databaseName}`;
+			
+			setActualConnectionUrl(actualUrl);
+			setMaskedConnectionUrl(maskedUrl);
 		};
 
-		setConnectionUrl(buildConnectionUrl());
+		buildConnectionUrl();
 	}, [
 		data?.appName,
 		data?.externalPort,
@@ -155,7 +159,11 @@ export const ShowExternalMariadbCredentials = ({ mariadbId }: Props) => {
 										<div className="flex flex-col gap-3">
 											{/* jdbc:mariadb://5.161.59.207:3306/pixel-calculate?user=mariadb&password=HdVXfq6hM7W7F1 */}
 											<Label>External Host</Label>
-											<ToggleVisibilityInput value={connectionUrl} disabled />
+											<SecureConnectionUrlInput 
+												maskedValue={maskedConnectionUrl} 
+												actualValue={actualConnectionUrl}
+												disabled 
+											/>
 										</div>
 									</div>
 								)}
