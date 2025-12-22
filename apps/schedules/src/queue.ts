@@ -15,11 +15,21 @@ export const jobQueue = new Queue("backupQueue", {
 });
 
 export const cleanQueue = async () => {
+	// Only obliterate the queue if explicitly allowed via environment variable
+	// This prevents accidental data loss in production or shared Redis environments
+	const allowObliterate = process.env.ALLOW_QUEUE_OBLITERATE === "true";
+	
+	if (!allowObliterate) {
+		logger.info("Queue obliteration skipped. Set ALLOW_QUEUE_OBLITERATE=true to enable.");
+		return;
+	}
+
 	try {
+		logger.warn("Obliterating queue - this will remove all scheduled jobs and pending tasks!");
 		await jobQueue.obliterate({ force: true });
-		logger.info("Queue Cleaned");
+		logger.info("Queue obliterated successfully");
 	} catch (error) {
-		logger.error("Error cleaning queue:", error);
+		logger.error("Error obliterating queue:", error);
 	}
 };
 
