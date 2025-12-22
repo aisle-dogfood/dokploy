@@ -161,8 +161,14 @@ export const applicationRouter = createTRPCRouter({
 				}
 			}
 
+			// Sanitize security data - never return password hashes
+			const sanitizedSecurity = application.security.map(
+				({ password, ...securityWithoutPassword }) => securityWithoutPassword,
+			);
+
 			return {
 				...application,
+				security: sanitizedSecurity,
 				hasGitProviderAccess,
 				unauthorizedProvider,
 			};

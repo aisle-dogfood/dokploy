@@ -8,7 +8,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
 import { Input } from "@/components/ui/input";
 import { api } from "@/utils/api";
 import { LockKeyhole, Trash2 } from "lucide-react";
@@ -69,10 +68,7 @@ export const ShowSecurity = ({ applicationId }: Props) => {
 											</div>
 											<div className="flex flex-col gap-2">
 												<Label>Password</Label>
-												<ToggleVisibilityInput
-													value={security.password}
-													disabled
-												/>
+												<Input disabled value="••••••••" type="password" />
 											</div>
 										</div>
 										<div className="flex flex-row gap-2">

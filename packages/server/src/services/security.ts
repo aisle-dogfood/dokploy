@@ -3,10 +3,12 @@ import { type apiCreateSecurity, security } from "@dokploy/server/db/schema";
 import {
 	createSecurityMiddleware,
 	removeSecurityMiddleware,
+	updateSecurityMiddleware,
 } from "@dokploy/server/utils/traefik/security";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import type { z } from "zod";
+import * as bcrypt from "bcrypt";
 import { findApplicationById } from "./application";
 export type Security = typeof security.$inferSelect;
 
@@ -30,10 +32,14 @@ export const createSecurity = async (
 		await db.transaction(async (tx) => {
 			const application = await findApplicationById(data.applicationId);
 
+			// Hash the password before storing
+			const hashedPassword = await bcrypt.hash(data.password, 10);
+
 			const securityResponse = await tx
 				.insert(security)
 				.values({
 					...data,
+					password: hashedPassword,
 				})
 				.returning()
 				.then((res) => res[0]);
@@ -90,15 +96,35 @@ export const updateSecurityById = async (
 	data: Partial<Security>,
 ) => {
 	try {
+		// Get the old security data before updating
+		const oldSecurity = await findSecurityById(securityId);
+		const application = await findApplicationById(oldSecurity.applicationId);
+
+		// If password is being updated, hash it
+		// Only hash if it's a new password (not already a bcrypt hash)
+		// bcrypt hashes start with $2a$, $2b$, or $2y$ and are 60 chars long
+		let updateData = { ...data };
+		if (data.password) {
+			const isBcryptHash = /^\$2[aby]\$\d{2}\$/.test(data.password);
+			if (!isBcryptHash) {
+				updateData.password = await bcrypt.hash(data.password, 10);
+			}
+		}
+
 		const response = await db
 			.update(security)
-			.set({
-				...data,
-			})
+			.set(updateData)
 			.where(eq(security.securityId, securityId))
 			.returning();
 
-		return response[0];
+		const updatedSecurity = response[0];
+
+		// Update Traefik middleware with the new credentials
+		if (updatedSecurity) {
+			await updateSecurityMiddleware(application, oldSecurity, updatedSecurity);
+		}
+
+		return updatedSecurity;
 	} catch (error) {
 		const message =
 			error instanceof Error ? error.message : "Error updating this security";

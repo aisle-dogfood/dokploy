@@ -26,12 +26,18 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-const AddSecuritychema = z.object({
+const AddSecuritySchema = z.object({
 	username: z.string().min(1, "Username is required"),
 	password: z.string().min(1, "Password is required"),
 });
 
-type AddSecurity = z.infer<typeof AddSecuritychema>;
+const UpdateSecuritySchema = z.object({
+	username: z.string().min(1, "Username is required"),
+	password: z.string().optional(),
+});
+
+type AddSecurity = z.infer<typeof AddSecuritySchema>;
+type UpdateSecurity = z.infer<typeof UpdateSecuritySchema>;
 
 interface Props {
 	applicationId: string;
@@ -59,27 +65,30 @@ export const HandleSecurity = ({
 		? api.security.update.useMutation()
 		: api.security.create.useMutation();
 
-	const form = useForm<AddSecurity>({
+	const form = useForm<AddSecurity | UpdateSecurity>({
 		defaultValues: {
 			username: "",
 			password: "",
 		},
-		resolver: zodResolver(AddSecuritychema),
+		resolver: zodResolver(securityId ? UpdateSecuritySchema : AddSecuritySchema),
 	});
 
 	useEffect(() => {
 		form.reset({
 			username: data?.username || "",
-			password: data?.password || "",
+			// Password is never returned by the API for security reasons
+			// Leave it empty when editing - user must provide a new password
+			password: "",
 		});
 	}, [form, form.reset, form.formState.isSubmitSuccessful, data]);
 
-	const onSubmit = async (data: AddSecurity) => {
-		await mutateAsync({
-			applicationId,
-			...data,
-			securityId: securityId || "",
-		})
+	const onSubmit = async (data: AddSecurity | UpdateSecurity) => {
+		// When updating, only include password if it was provided (non-empty)
+		const payload = securityId && !data.password
+			? { applicationId, username: data.username, securityId }
+			: { applicationId, ...data, securityId: securityId || "" };
+
+		await mutateAsync(payload as any)
 			.then(async () => {
 				toast.success(securityId ? "Security Updated" : "Security Created");
 				await utils.application.one.invalidate({
@@ -149,9 +158,20 @@ export const HandleSecurity = ({
 								name="password"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Password</FormLabel>
+										<FormLabel>
+											Password
+											{securityId && (
+												<span className="text-xs text-muted-foreground ml-2">
+													(leave empty to keep current)
+												</span>
+											)}
+										</FormLabel>
 										<FormControl>
-											<Input placeholder="test" type="password" {...field} />
+											<Input 
+												placeholder={securityId ? "Enter new password to change" : "Enter password"} 
+												type="password" 
+												{...field} 
+											/>
 										</FormControl>
 
 										<FormMessage />

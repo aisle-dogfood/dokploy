@@ -34,7 +34,8 @@ export const createSecurityMiddleware = async (
 	}
 	const middlewareName = `auth-${appName}`;
 
-	const user = `${data.username}:${await bcrypt.hash(data.password, 10)}`;
+	// Password is already hashed in the database, use it directly
+	const user = `${data.username}:${data.password}`;
 
 	if (config.http?.middlewares) {
 		const currentMiddleware = config.http.middlewares[middlewareName];
@@ -65,6 +66,46 @@ export const createSecurityMiddleware = async (
 		await writeTraefikConfigRemote(appConfig, appName, serverId);
 	} else {
 		writeTraefikConfig(appConfig, appName);
+		writeMiddleware(config);
+	}
+};
+
+export const updateSecurityMiddleware = async (
+	application: ApplicationNested,
+	oldData: Security,
+	newData: Security,
+) => {
+	// Remove the old user entry and add the new one
+	const { appName, serverId } = application;
+	let config: FileConfig;
+
+	if (serverId) {
+		config = await loadRemoteMiddlewares(serverId);
+	} else {
+		config = loadMiddlewares<FileConfig>();
+	}
+	const middlewareName = `auth-${appName}`;
+
+	if (config.http?.middlewares) {
+		const currentMiddleware = config.http.middlewares[middlewareName];
+		if (isBasicAuthMiddleware(currentMiddleware)) {
+			const users = currentMiddleware.basicAuth.users;
+			// Remove old user entry
+			const filteredUsers =
+				users?.filter((user) => {
+					const [username] = user.split(":");
+					return username !== oldData.username;
+				}) || [];
+
+			// Add new user entry with updated hash
+			const newUser = `${newData.username}:${newData.password}`;
+			currentMiddleware.basicAuth.users = [...filteredUsers, newUser];
+		}
+	}
+
+	if (serverId) {
+		await writeTraefikConfigRemote(config, "middlewares", serverId);
+	} else {
 		writeMiddleware(config);
 	}
 };
