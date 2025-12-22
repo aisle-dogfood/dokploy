@@ -62,11 +62,10 @@ interface ContainerMetric {
 
 interface Props {
 	appName: string;
-	baseUrl: string;
-	token: string;
+	serverId: string;
 }
 
-export const ContainerPaidMonitoring = ({ appName, baseUrl, token }: Props) => {
+export const ContainerPaidMonitoring = ({ appName, serverId }: Props) => {
 	const [historicalData, setHistoricalData] = useState<ContainerMetric[]>([]);
 	const [metrics, setMetrics] = useState<ContainerMetric>(
 		{} as ContainerMetric,
@@ -81,15 +80,14 @@ export const ContainerPaidMonitoring = ({ appName, baseUrl, token }: Props) => {
 		error: queryError,
 	} = api.user.getContainerMetrics.useQuery(
 		{
-			url: baseUrl,
-			token,
+			serverId,
 			dataPoints,
 			appName,
 		},
 		{
 			refetchInterval:
 				dataPoints === "all" ? undefined : Number.parseInt(refreshInterval),
-			enabled: !!appName,
+			enabled: !!appName && !!serverId,
 		},
 	);
 
