@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { FancyAnsi } from "fancy-ansi";
 import { escapeRegExp } from "lodash";
+import { sanitizeHtml } from "./sanitize-html";
 import { type LogLine, getLogType } from "./utils";
 
 interface LogLineProps {
@@ -36,11 +37,13 @@ export function TerminalLine({ log, noTimestamp, searchTerm }: LogLineProps) {
 
 	const highlightMessage = (text: string, term: string) => {
 		if (!term) {
+			const htmlContent = fancyAnsi.toHtml(text);
+			const sanitizedHtml = sanitizeHtml(htmlContent);
 			return (
 				<span
 					className="transition-colors"
 					dangerouslySetInnerHTML={{
-						__html: fancyAnsi.toHtml(text),
+						__html: sanitizedHtml,
 					}}
 				/>
 			);
@@ -55,10 +58,12 @@ export function TerminalLine({ log, noTimestamp, searchTerm }: LogLineProps) {
 				`<span class="bg-orange-200/80 dark:bg-orange-900/80 font-bold">${match}</span>`,
 		);
 
+		const sanitizedHtml = sanitizeHtml(modifiedContent);
+
 		return (
 			<span
 				className="transition-colors"
-				dangerouslySetInnerHTML={{ __html: modifiedContent }}
+				dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
 			/>
 		);
 	};
