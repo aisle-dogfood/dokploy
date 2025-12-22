@@ -264,12 +264,8 @@ const Service = (
 											<div className="flex flex-col border rounded-lg ">
 												{data?.serverId && isCloud ? (
 													<ComposePaidMonitoring
-														serverId={data?.serverId || ""}
-														baseUrl={`${data?.serverId ? `http://${data?.server?.ipAddress}:${data?.server?.metricsConfig?.server?.port}` : "http://localhost:4500"}`}
+														serverId={data?.serverId}
 														appName={data?.appName || ""}
-														token={
-															data?.server?.metricsConfig?.server?.token || ""
-														}
 														appType={data?.composeType || "docker-compose"}
 													/>
 												) : (

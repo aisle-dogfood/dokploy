@@ -4,6 +4,7 @@ import {
 	findAdmin,
 	findNotificationById,
 	findOrganizationById,
+	findServerById,
 	findUserById,
 	getUserByToken,
 	removeUserById,
@@ -270,13 +271,12 @@ export const userRouter = createTRPCRouter({
 	getContainerMetrics: protectedProcedure
 		.input(
 			z.object({
-				url: z.string(),
-				token: z.string(),
+				serverId: z.string(),
 				appName: z.string(),
 				dataPoints: z.string(),
 			}),
 		)
-		.query(async ({ input }) => {
+		.query(async ({ input, ctx }) => {
 			try {
 				if (!input.appName) {
 					throw new Error(
@@ -287,12 +287,36 @@ export const userRouter = createTRPCRouter({
 						].join("\n"),
 					);
 				}
-				const url = new URL(`${input.url}/metrics/containers`);
+				
+				// Fetch server details server-side to avoid exposing token to client
+				const server = await findServerById(input.serverId);
+				
+				// Verify user has access to this server's organization
+				if (server.organizationId !== ctx.session.activeOrganizationId) {
+					throw new TRPCError({
+						code: "UNAUTHORIZED",
+						message: "You are not authorized to access this server's monitoring",
+					});
+				}
+				
+				// Extract token and build URL server-side
+				const token = server.metricsConfig?.server?.token;
+				const port = server.metricsConfig?.server?.port;
+				
+				if (!token || !port || !server.ipAddress) {
+					throw new Error(
+						"Monitoring is not properly configured for this server.",
+					);
+				}
+				
+				const baseUrl = `http://${server.ipAddress}:${port}`;
+				const url = new URL(`${baseUrl}/metrics/containers`);
 				url.searchParams.append("limit", input.dataPoints);
 				url.searchParams.append("appName", input.appName);
+				
 				const response = await fetch(url.toString(), {
 					headers: {
-						Authorization: `Bearer ${input.token}`,
+						Authorization: `Bearer ${token}`,
 					},
 				});
 				if (!response.ok) {
