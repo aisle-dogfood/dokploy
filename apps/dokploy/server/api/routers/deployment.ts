@@ -9,6 +9,7 @@ import {
 import {
 	execAsync,
 	execAsyncRemote,
+	execFileAsync,
 	findAllDeploymentsByApplicationId,
 	findAllDeploymentsByComposeId,
 	findAllDeploymentsByServerId,
@@ -84,8 +85,20 @@ export const deploymentRouter = createTRPCRouter({
 				deploymentId: z.string().min(1),
 			}),
 		)
-		.mutation(async ({ input }) => {
+		.mutation(async ({ input, ctx }) => {
 			const deployment = await findDeploymentById(input.deploymentId);
+
+			// Enforce organization ownership check before killing process
+			const organizationId =
+				deployment.application?.project?.organizationId ||
+				deployment.compose?.project?.organizationId;
+
+			if (organizationId !== ctx.session.activeOrganizationId) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "You are not authorized to kill this deployment process",
+				});
+			}
 
 			if (!deployment.pid) {
 				throw new TRPCError({
@@ -94,11 +107,23 @@ export const deploymentRouter = createTRPCRouter({
 				});
 			}
 
-			const command = `kill -9 ${deployment.pid}`;
+			// Strictly validate PID to ensure it contains only digits
+			if (!/^\d+$/.test(deployment.pid)) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Invalid PID format",
+				});
+			}
+
+			// Use execFile for local execution to avoid shell injection
+			// For remote execution, PID validation above prevents injection
 			if (deployment.schedule?.serverId) {
+				// For remote execution, build command safely with validated PID
+				const command = `kill -9 ${deployment.pid}`;
 				await execAsyncRemote(deployment.schedule.serverId, command);
 			} else {
-				await execAsync(command);
+				// For local execution, use execFile with argument array (no shell)
+				await execFileAsync("kill", ["-9", deployment.pid]);
 			}
 
 			await updateDeploymentStatus(deployment.deploymentId, "error");
