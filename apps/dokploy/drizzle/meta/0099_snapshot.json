@@ -2839,7 +2839,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'host'"
+          "default": "'ingress'"
         },
         "targetPort": {
           "name": "targetPort",
