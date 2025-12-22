@@ -45,6 +45,15 @@ export const apiCreateCertificate = createInsertSchema(certificates, {
 	privateKey: z.string().min(1),
 	autoRenew: z.boolean().optional(),
 	serverId: z.string().optional(),
+	// Validate certificatePath to prevent directory traversal and command injection
+	// Only allow alphanumeric characters, hyphens, and underscores
+	certificatePath: z
+		.string()
+		.regex(
+			/^[a-zA-Z0-9_-]+$/,
+			"Certificate path must only contain alphanumeric characters, hyphens, and underscores",
+		)
+		.optional(),
 });
 
 export const apiFindCertificate = z.object({
