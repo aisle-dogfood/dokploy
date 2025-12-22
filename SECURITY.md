@@ -25,4 +25,62 @@ If you have discovered a security vulnerability in Dokploy, we ask that you repo
 
 We are committed to working with you quickly and responsibly to address any legitimate security vulnerability.
 
+## Security Best Practices
+
+### Server Configuration
+
+When configuring remote servers in Dokploy, follow these security best practices:
+
+#### SSH User Configuration
+
+**⚠️ CRITICAL: Never use 'root' user for SSH connections**
+
+Using the 'root' user for remote server connections significantly increases security risks:
+- **Increased Blast Radius**: If credentials are compromised, an attacker has complete system control
+- **No Audit Trail**: Actions performed as root are harder to trace to individual users
+- **Privilege Escalation**: Root access bypasses all privilege separation mechanisms
+
+**Recommended Approach:**
+
+1. **Create a dedicated non-root user** on your remote server:
+   ```bash
+   # On your remote server
+   sudo adduser dokploy
+   sudo usermod -aG sudo dokploy  # For Debian/Ubuntu
+   # OR
+   sudo usermod -aG wheel dokploy  # For RHEL/CentOS/Fedora
+   ```
+
+2. **Configure sudo privileges** without password for Docker commands (optional):
+   ```bash
+   sudo visudo
+   # Add the following line:
+   dokploy ALL=(ALL) NOPASSWD: /usr/bin/docker
+   ```
+
+3. **Use SSH key-only authentication**:
+   - Always use SSH keys instead of passwords
+   - Disable password authentication in `/etc/ssh/sshd_config`:
+     ```
+     PasswordAuthentication no
+     PubkeyAuthentication yes
+     PermitRootLogin no
+     ```
+
+4. **Configure Dokploy to use the non-root user**:
+   - When creating a server in Dokploy, specify your non-root username (e.g., `dokploy`, `ubuntu`, `admin`)
+   - The application will validate and warn against using 'root'
+
+#### Additional Security Measures
+
+- **Firewall Configuration**: Restrict SSH access to known IP addresses
+- **SSH Port**: Consider changing the default SSH port (22) to a non-standard port
+- **Fail2Ban**: Implement fail2ban to prevent brute-force attacks
+- **Regular Updates**: Keep your server's operating system and packages up to date
+- **Monitor Logs**: Regularly review SSH and system logs for suspicious activity
+
+### Reporting Security Issues
+
+If you discover a security vulnerability related to server configuration or any other aspect of Dokploy, please report it following the guidelines above.
+
 Thank you for helping us keep Dokploy secure for everyone.

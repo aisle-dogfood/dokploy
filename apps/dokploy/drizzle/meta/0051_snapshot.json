@@ -3954,8 +3954,7 @@
           "name": "username",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'root'"
+          "notNull": true
         },
         "appName": {
           "name": "appName",

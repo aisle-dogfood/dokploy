@@ -25,6 +25,15 @@ import { sshKeys } from "./ssh-key";
 import { generateAppName } from "./utils";
 export const serverStatus = pgEnum("serverStatus", ["active", "inactive"]);
 
+/**
+ * Server table schema
+ * 
+ * SECURITY NOTE: The 'username' field should NEVER be set to 'root' in production environments.
+ * Using the root user for SSH connections significantly increases the security risk and blast radius
+ * in case of a breach. Always use a non-root user with appropriate sudo privileges and SSH key-only
+ * authentication. The application enforces validation to prevent 'root' usage during server creation
+ * and setup.
+ */
 export const server = pgTable("server", {
 	serverId: text("serverId")
 		.notNull()
@@ -34,7 +43,8 @@ export const server = pgTable("server", {
 	description: text("description"),
 	ipAddress: text("ipAddress").notNull(),
 	port: integer("port").notNull(),
-	username: text("username").notNull().default("root"),
+	// SECURITY: Username must not be 'root' - enforced by validation schema
+	username: text("username").notNull(),
 	appName: text("appName")
 		.notNull()
 		.$defaultFn(() => generateAppName("server")),
@@ -121,6 +131,16 @@ const createSchema = createInsertSchema(server, {
 	serverId: z.string().min(1),
 	name: z.string().min(1),
 	description: z.string().optional(),
+	username: z
+		.string()
+		.min(1, { message: "Username is required" })
+		.refine(
+			(val) => val !== "root",
+			{
+				message:
+					"Using 'root' user is strongly discouraged for security reasons. Please use a non-root user with sudo privileges.",
+			},
+		),
 });
 
 export const apiCreateServer = createSchema
