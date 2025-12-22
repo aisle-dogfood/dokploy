@@ -10,6 +10,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { validateServerCommand } from "../../utils/command-validation";
 import { organization } from "./account";
 import { applications } from "./application";
 import { certificates } from "./certificate";
@@ -158,7 +159,23 @@ export const apiUpdateServer = createSchema
 	})
 	.required()
 	.extend({
-		command: z.string().optional(),
+		command: z
+			.string()
+			.optional()
+			.refine(
+				(val) => {
+					if (!val || val.trim() === "") return true;
+					try {
+						return validateServerCommand(val);
+					} catch (error) {
+						return false;
+					}
+				},
+				{
+					message:
+						"Command contains potentially dangerous patterns or invalid syntax",
+				},
+			),
 	});
 
 export const apiUpdateServerMonitoring = createSchema

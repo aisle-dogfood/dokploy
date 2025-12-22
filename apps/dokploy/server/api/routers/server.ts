@@ -10,6 +10,7 @@ import {
 	applications,
 	compose,
 	mariadb,
+	member,
 	mongo,
 	mysql,
 	organization,
@@ -367,6 +368,35 @@ export const serverRouter = createTRPCRouter({
 						message: "Server is inactive",
 					});
 				}
+
+				// Security: Only allow owner/admin to modify server setup command
+				// This prevents privilege escalation and command injection by regular members
+				if (input.command !== undefined && input.command !== server.command) {
+					// Check if user is owner or admin of the organization
+					const userMember = await db.query.member.findFirst({
+						where: and(
+							eq(member.userId, ctx.user.ownerId),
+							eq(member.organizationId, ctx.session.activeOrganizationId),
+						),
+					});
+
+					const isOwnerOrAdmin =
+						userMember?.role === "owner" || userMember?.role === "admin";
+
+					if (!isOwnerOrAdmin) {
+						throw new TRPCError({
+							code: "FORBIDDEN",
+							message:
+								"Only organization owners and admins can modify server setup commands",
+						});
+					}
+
+					// Audit log: Record command modification for security monitoring
+					console.log(
+						`[SECURITY AUDIT] Server setup command modified - Server ID: ${input.serverId}, User ID: ${ctx.user.ownerId}, Organization ID: ${ctx.session.activeOrganizationId}, Role: ${userMember?.role}, Timestamp: ${new Date().toISOString()}`,
+					);
+				}
+
 				const currentServer = await updateServerById(input.serverId, {
 					...input,
 				});
