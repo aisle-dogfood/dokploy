@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -14,9 +14,9 @@ export const security = pgTable(
 			.$defaultFn(() => nanoid()),
 		username: text("username").notNull(),
 		password: text("password").notNull(),
-		createdAt: text("createdAt")
+		createdAt: timestamp("createdAt", { mode: "string" })
 			.notNull()
-			.$defaultFn(() => new Date().toISOString()),
+			.defaultNow(),
 		applicationId: text("applicationId")
 			.notNull()
 			.references(() => applications.applicationId, { onDelete: "cascade" }),

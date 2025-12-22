@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -33,10 +33,10 @@ export const previewDeployments = pgTable("preview_deployments", {
 	domainId: text("domainId").references(() => domains.domainId, {
 		onDelete: "cascade",
 	}),
-	createdAt: text("createdAt")
+	createdAt: timestamp("createdAt", { mode: "string" })
 		.notNull()
-		.$defaultFn(() => new Date().toISOString()),
-	expiresAt: text("expiresAt"),
+		.defaultNow(),
+	expiresAt: timestamp("expiresAt", { mode: "string" }),
 });
 
 export const previewDeploymentsRelations = relations(

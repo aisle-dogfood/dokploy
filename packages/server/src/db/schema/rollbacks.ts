@@ -4,7 +4,7 @@ import type { Port } from "@dokploy/server/services/port";
 import type { Project } from "@dokploy/server/services/project";
 import type { Registry } from "@dokploy/server/services/registry";
 import { relations } from "drizzle-orm";
-import { jsonb, pgTable, serial, text } from "drizzle-orm/pg-core";
+import { jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -22,9 +22,9 @@ export const rollbacks = pgTable("rollback", {
 		}),
 	version: serial(),
 	image: text("image"),
-	createdAt: text("createdAt")
+	createdAt: timestamp("createdAt", { mode: "string" })
 		.notNull()
-		.$defaultFn(() => new Date().toISOString()),
+		.defaultNow(),
 	fullContext: jsonb("fullContext").$type<
 		Application & {
 			project: Project;

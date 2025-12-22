@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { integer, pgTable, text } from "drizzle-orm/pg-core";
+import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -36,9 +36,9 @@ export const mysql = pgTable("mysql", {
 	applicationStatus: applicationStatus("applicationStatus")
 		.notNull()
 		.default("idle"),
-	createdAt: text("createdAt")
+	createdAt: timestamp("createdAt", { mode: "string" })
 		.notNull()
-		.$defaultFn(() => new Date().toISOString()),
+		.defaultNow(),
 	projectId: text("projectId")
 		.notNull()
 		.references(() => projects.projectId, { onDelete: "cascade" }),

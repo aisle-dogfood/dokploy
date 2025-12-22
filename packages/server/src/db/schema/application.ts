@@ -6,6 +6,7 @@ import {
 	pgEnum,
 	pgTable,
 	text,
+	timestamp,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
@@ -211,9 +212,9 @@ export const applications = pgTable("application", {
 	herokuVersion: text("herokuVersion").default("24"),
 	publishDirectory: text("publishDirectory"),
 	isStaticSpa: boolean("isStaticSpa"),
-	createdAt: text("createdAt")
+	createdAt: timestamp("createdAt", { mode: "string" })
 		.notNull()
-		.$defaultFn(() => new Date().toISOString()),
+		.defaultNow(),
 	registryId: text("registryId").references(() => registry.registryId, {
 		onDelete: "set null",
 	}),

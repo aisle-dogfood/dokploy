@@ -7,6 +7,7 @@ import {
 	pgTable,
 	serial,
 	text,
+	timestamp,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
@@ -35,9 +36,9 @@ export const domains = pgTable("domain", {
 	serviceName: text("serviceName"),
 	domainType: domainType("domainType").default("application"),
 	uniqueConfigKey: serial("uniqueConfigKey"),
-	createdAt: text("createdAt")
+	createdAt: timestamp("createdAt", { mode: "string" })
 		.notNull()
-		.$defaultFn(() => new Date().toISOString()),
+		.defaultNow(),
 	composeId: text("composeId").references(() => compose.composeId, {
 		onDelete: "cascade",
 	}),
