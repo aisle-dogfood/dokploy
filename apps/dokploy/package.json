@@ -145,7 +145,7 @@
 		"ssh2": "1.15.0",
 		"stripe": "17.2.0",
 		"superjson": "^2.2.2",
-		"swagger-ui-react": "^5.22.0",
+		"swagger-ui-react": "^5.30.3",
 		"tailwind-merge": "^2.6.0",
 		"tailwindcss-animate": "^1.0.7",
 		"toml": "3.0.0",
