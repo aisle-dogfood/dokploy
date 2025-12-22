@@ -5,6 +5,7 @@ import {
 	removeSecurityMiddleware,
 } from "@dokploy/server/utils/traefik/security";
 import { TRPCError } from "@trpc/server";
+import * as bcrypt from "bcrypt";
 import { eq } from "drizzle-orm";
 import type { z } from "zod";
 import { findApplicationById } from "./application";
@@ -30,10 +31,14 @@ export const createSecurity = async (
 		await db.transaction(async (tx) => {
 			const application = await findApplicationById(data.applicationId);
 
+			// Hash the password before storing in the database
+			const hashedPassword = await bcrypt.hash(data.password, 10);
+
 			const securityResponse = await tx
 				.insert(security)
 				.values({
 					...data,
+					password: hashedPassword,
 				})
 				.returning()
 				.then((res) => res[0]);
@@ -44,7 +49,12 @@ export const createSecurity = async (
 					message: "Error creating the security",
 				});
 			}
-			await createSecurityMiddleware(application, securityResponse);
+			// Pass the original plaintext password to createSecurityMiddleware
+			// as it will hash it again for Traefik
+			await createSecurityMiddleware(application, {
+				...securityResponse,
+				password: data.password,
+			});
 			return true;
 		});
 	} catch (error) {
@@ -90,11 +100,15 @@ export const updateSecurityById = async (
 	data: Partial<Security>,
 ) => {
 	try {
+		// Hash the password if it's being updated
+		const updateData = { ...data };
+		if (updateData.password) {
+			updateData.password = await bcrypt.hash(updateData.password, 10);
+		}
+
 		const response = await db
 			.update(security)
-			.set({
-				...data,
-			})
+			.set(updateData)
 			.where(eq(security.securityId, securityId))
 			.returning();
 
