@@ -8,12 +8,10 @@ import {
 import { buildAppName } from "@dokploy/server/db/schema";
 import { generatePassword } from "@dokploy/server/templates";
 import { buildMongo } from "@dokploy/server/utils/databases/mongo";
-import { pullImage } from "@dokploy/server/utils/docker/utils";
+import { pullImage, pullRemoteImage } from "@dokploy/server/utils/docker/utils";
 import { TRPCError } from "@trpc/server";
 import { eq, getTableColumns } from "drizzle-orm";
 import { validUniqueServerAppName } from "./project";
-
-import { execAsyncRemote } from "@dokploy/server/utils/process/execAsync";
 
 export type Mongo = typeof mongo.$inferSelect;
 
@@ -149,9 +147,9 @@ export const deployMongo = async (
 
 		onData?.("Starting mongo deployment...");
 		if (mongo.serverId) {
-			await execAsyncRemote(
+			await pullRemoteImage(
+				mongo.dockerImage,
 				mongo.serverId,
-				`docker pull ${mongo.dockerImage}`,
 				onData,
 			);
 		} else {

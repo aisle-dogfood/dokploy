@@ -7,12 +7,10 @@ import {
 import { buildAppName } from "@dokploy/server/db/schema";
 import { generatePassword } from "@dokploy/server/templates";
 import { buildPostgres } from "@dokploy/server/utils/databases/postgres";
-import { pullImage } from "@dokploy/server/utils/docker/utils";
+import { pullImage, pullRemoteImage } from "@dokploy/server/utils/docker/utils";
 import { TRPCError } from "@trpc/server";
 import { eq, getTableColumns } from "drizzle-orm";
 import { validUniqueServerAppName } from "./project";
-
-import { execAsyncRemote } from "@dokploy/server/utils/process/execAsync";
 
 export type Postgres = typeof postgres.$inferSelect;
 
@@ -129,9 +127,9 @@ export const deployPostgres = async (
 		onData?.("Starting postgres deployment...");
 
 		if (postgres.serverId) {
-			await execAsyncRemote(
+			await pullRemoteImage(
+				postgres.dockerImage,
 				postgres.serverId,
-				`docker pull ${postgres.dockerImage}`,
 				onData,
 			);
 		} else {
