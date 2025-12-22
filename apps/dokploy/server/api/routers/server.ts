@@ -386,18 +386,49 @@ export const serverRouter = createTRPCRouter({
 	getServerMetrics: protectedProcedure
 		.input(
 			z.object({
-				url: z.string(),
-				token: z.string(),
+				serverId: z.string().optional(),
 				dataPoints: z.string(),
 			}),
 		)
-		.query(async ({ input }) => {
+		.query(async ({ input, ctx }) => {
 			try {
-				const url = new URL(input.url);
+				let metricsConfig;
+				let serverIp;
+
+				if (input.serverId) {
+					// Fetch metrics config for a specific server
+					const serverData = await findServerById(input.serverId);
+					if (!serverData) {
+						throw new TRPCError({
+							code: "NOT_FOUND",
+							message: "Server not found",
+						});
+					}
+					metricsConfig = serverData.metricsConfig;
+					serverIp = serverData.ipAddress;
+				} else {
+					// Fetch metrics config for the current user's server
+					const user = await findUserById(ctx.user.ownerId);
+					metricsConfig = user.metricsConfig;
+					serverIp = user.serverIp;
+				}
+
+				if (!metricsConfig?.server?.token) {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message: "Monitoring is not configured. Please configure monitoring in the settings.",
+					});
+				}
+
+				const baseUrl = input.serverId 
+					? `http://${serverIp}:${metricsConfig.server.port}/metrics`
+					: `http://${serverIp}:${metricsConfig.server.port}/metrics`;
+
+				const url = new URL(baseUrl);
 				url.searchParams.append("limit", input.dataPoints);
 				const response = await fetch(url.toString(), {
 					headers: {
-						Authorization: `Bearer ${input.token}`,
+						Authorization: `Bearer ${metricsConfig.server.token}`,
 					},
 				});
 				if (!response.ok) {
