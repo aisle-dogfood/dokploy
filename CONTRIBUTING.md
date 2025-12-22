@@ -117,6 +117,8 @@ In the case you lost your password, you can reset it using the following command
 pnpm run reset-password
 ```
 
+The script will generate a new random password and save it to a secure temporary file (readable only by the current user). Follow the on-screen instructions to retrieve the password from the file, then delete the file immediately after use.
+
 If you want to test the webhooks on development mode using localtunnel, make sure to install `localtunnel`
 
 ```bash
