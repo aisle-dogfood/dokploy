@@ -67,7 +67,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, sanitizeUrl } from "@/lib/utils";
 import { api } from "@/utils/api";
 
 const TEMPLATE_BASE_URL_KEY = "dokploy_template_base_url";
@@ -138,6 +138,24 @@ export const AddTemplate = ({ projectId, baseUrl }: Props) => {
 		}) || [];
 
 	const hasServers = servers && servers.length > 0;
+
+	// Helper function to safely build template image URLs
+	const getSafeImageUrl = (templateId: string, logo: string): string => {
+		const baseUrlToUse = customBaseUrl || "https://templates.dokploy.com/";
+		try {
+			// Sanitize the base URL first
+			const sanitizedBase = sanitizeUrl(baseUrlToUse);
+			if (!sanitizedBase) {
+				return ""; // Return empty string if base URL is invalid
+			}
+			// Build the full URL
+			const fullUrl = `${sanitizedBase.endsWith("/") ? sanitizedBase : sanitizedBase + "/"}blueprints/${encodeURIComponent(templateId)}/${encodeURIComponent(logo)}`;
+			// Sanitize the full URL to ensure it's still safe
+			return sanitizeUrl(fullUrl) || "";
+		} catch {
+			return "";
+		}
+	};
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
@@ -326,7 +344,7 @@ export const AddTemplate = ({ projectId, baseUrl }: Props) => {
 											)}
 										>
 											<img
-												src={`${customBaseUrl || "https://templates.dokploy.com/"}/blueprints/${template?.id}/${template?.logo}`}
+												src={getSafeImageUrl(template?.id, template?.logo)}
 												className={cn(
 													"object-contain",
 													viewMode === "detailed" ? "size-24" : "size-16",
@@ -374,27 +392,27 @@ export const AddTemplate = ({ projectId, baseUrl }: Props) => {
 										>
 											{viewMode === "detailed" && (
 												<div className="flex gap-2">
-													{template?.links?.github && (
+													{sanitizeUrl(template?.links?.github) && (
 														<Link
-															href={template?.links?.github}
+															href={sanitizeUrl(template?.links?.github) || "#"}
 															target="_blank"
 															className="text-muted-foreground hover:text-foreground transition-colors"
 														>
 															<GithubIcon className="size-5" />
 														</Link>
 													)}
-													{template?.links?.website && (
+													{sanitizeUrl(template?.links?.website) && (
 														<Link
-															href={template?.links?.website}
+															href={sanitizeUrl(template?.links?.website) || "#"}
 															target="_blank"
 															className="text-muted-foreground hover:text-foreground transition-colors"
 														>
 															<Globe className="size-5" />
 														</Link>
 													)}
-													{template?.links?.docs && (
+													{sanitizeUrl(template?.links?.docs) && (
 														<Link
-															href={template?.links?.docs}
+															href={sanitizeUrl(template?.links?.docs) || "#"}
 															target="_blank"
 															className="text-muted-foreground hover:text-foreground transition-colors"
 														>
