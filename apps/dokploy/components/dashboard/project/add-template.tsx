@@ -72,6 +72,23 @@ import { api } from "@/utils/api";
 
 const TEMPLATE_BASE_URL_KEY = "dokploy_template_base_url";
 
+/**
+ * Validates if a URL is safe to use in links.
+ * Only allows http: and https: protocols to prevent XSS attacks via javascript: or data: URLs.
+ * @param url - The URL to validate
+ * @returns true if the URL is safe, false otherwise
+ */
+const isSafeUrl = (url: string | undefined): boolean => {
+	if (!url) return false;
+	try {
+		const parsed = new URL(url);
+		return parsed.protocol === "http:" || parsed.protocol === "https:";
+	} catch {
+		// If URL parsing fails, treat it as unsafe
+		return false;
+	}
+};
+
 interface Props {
 	projectId: string;
 	baseUrl?: string;
@@ -374,33 +391,36 @@ export const AddTemplate = ({ projectId, baseUrl }: Props) => {
 										>
 											{viewMode === "detailed" && (
 												<div className="flex gap-2">
-													{template?.links?.github && (
-														<Link
-															href={template?.links?.github}
-															target="_blank"
-															className="text-muted-foreground hover:text-foreground transition-colors"
-														>
-															<GithubIcon className="size-5" />
-														</Link>
-													)}
-													{template?.links?.website && (
-														<Link
-															href={template?.links?.website}
-															target="_blank"
-															className="text-muted-foreground hover:text-foreground transition-colors"
-														>
-															<Globe className="size-5" />
-														</Link>
-													)}
-													{template?.links?.docs && (
-														<Link
-															href={template?.links?.docs}
-															target="_blank"
-															className="text-muted-foreground hover:text-foreground transition-colors"
-														>
-															<BookText className="size-5" />
-														</Link>
-													)}
+													{template?.links?.github &&
+														isSafeUrl(template?.links?.github) && (
+															<Link
+																href={template?.links?.github}
+																target="_blank"
+																className="text-muted-foreground hover:text-foreground transition-colors"
+															>
+																<GithubIcon className="size-5" />
+															</Link>
+														)}
+													{template?.links?.website &&
+														isSafeUrl(template?.links?.website) && (
+															<Link
+																href={template?.links?.website}
+																target="_blank"
+																className="text-muted-foreground hover:text-foreground transition-colors"
+															>
+																<Globe className="size-5" />
+															</Link>
+														)}
+													{template?.links?.docs &&
+														isSafeUrl(template?.links?.docs) && (
+															<Link
+																href={template?.links?.docs}
+																target="_blank"
+																className="text-muted-foreground transition-colors"
+															>
+																<BookText className="size-5" />
+															</Link>
+														)}
 												</div>
 											)}
 											<AlertDialog>
