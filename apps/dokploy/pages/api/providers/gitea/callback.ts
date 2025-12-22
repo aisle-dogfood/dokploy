@@ -1,17 +1,7 @@
 import { updateGitea } from "@dokploy/server";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { type Gitea, findGitea, redirectWithError } from "./helper";
-
-// Helper to parse the state parameter
-const parseState = (state: string): string | null => {
-	try {
-		const stateObj =
-			state.startsWith("{") && state.endsWith("}") ? JSON.parse(state) : {};
-		return stateObj.giteaId || state || null;
-	} catch {
-		return null;
-	}
-};
+import { validateOAuthState } from "./oauth-state";
 
 // Helper to fetch access token from Gitea
 const fetchAccessToken = async (gitea: Gitea, code: string) => {
@@ -49,8 +39,14 @@ export default async function handler(
 		);
 	}
 
-	const giteaId = parseState(state as string);
-	if (!giteaId) return redirectWithError(res, "Invalid state format");
+	// Validate the OAuth state parameter to prevent CSRF attacks
+	const giteaId = validateOAuthState(state as string);
+	if (!giteaId) {
+		return redirectWithError(
+			res, 
+			"Invalid or expired OAuth state. Please try again.",
+		);
+	}
 
 	const gitea = await findGitea(giteaId);
 	if (!gitea) return redirectWithError(res, "Failed to find Gitea provider");
