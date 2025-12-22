@@ -41,7 +41,10 @@ export const securityRouter = createTRPCRouter({
 					message: "You are not authorized to access this application",
 				});
 			}
-			return await findSecurityById(input.securityId);
+			const result = await findSecurityById(input.securityId);
+			// Never return the password hash to the client
+			const { password, ...securityWithoutPassword } = result;
+			return securityWithoutPassword;
 		}),
 	delete: protectedProcedure
 		.input(apiFindOneSecurity)
