@@ -146,6 +146,27 @@ export const apiRemoveServer = createSchema
 	})
 	.required();
 
+/**
+ * Validates a server command to prevent command injection.
+ * Only allows empty strings or commands that match safe patterns.
+ */
+const validateCommandSafety = (command: string | undefined): boolean => {
+	// Empty or undefined is allowed (will use default)
+	if (!command || !command.trim()) {
+		return true;
+	}
+
+	const trimmedCommand = command.trim();
+
+	// Only allow commands that start with safe patterns
+	const safePatterns = [
+		/^set -e;\s*DOCKER_VERSION=/,  // The default setup script pattern
+		/^#!/,  // Shebang scripts
+	];
+
+	return safePatterns.some(pattern => pattern.test(trimmedCommand));
+};
+
 export const apiUpdateServer = createSchema
 	.pick({
 		name: true,
@@ -158,7 +179,12 @@ export const apiUpdateServer = createSchema
 	})
 	.required()
 	.extend({
-		command: z.string().optional(),
+		command: z.string().optional().refine(
+			(val) => validateCommandSafety(val),
+			{
+				message: "Invalid server command: Only predefined setup scripts are allowed. Use the default command or contact your administrator.",
+			}
+		),
 	});
 
 export const apiUpdateServerMonitoring = createSchema

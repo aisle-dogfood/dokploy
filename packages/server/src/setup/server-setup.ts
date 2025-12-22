@@ -179,6 +179,94 @@ ${installRailpack()}
 	return bashCommand;
 };
 
+/**
+ * Validates and sanitizes a server command to prevent command injection attacks.
+ * Only allows safe, predefined commands to be executed.
+ * @param command - The command to validate
+ * @returns The validated command or throws an error
+ */
+const validateServerCommand = (command: string): string => {
+	// If command is empty or only whitespace, use default
+	if (!command || !command.trim()) {
+		return defaultCommand();
+	}
+
+	// Normalize the command by trimming whitespace
+	const trimmedCommand = command.trim();
+
+	// Check if the command matches the default command pattern
+	// This allows the default command and minor variations
+	const defaultCmd = defaultCommand();
+	if (trimmedCommand === defaultCmd || trimmedCommand === defaultCmd.trim()) {
+		return defaultCmd;
+	}
+
+	// Allowlist approach: Only allow commands that start with specific safe patterns
+	// This prevents arbitrary command injection while allowing legitimate setup scripts
+	const safePatterns = [
+		/^set -e;\s*DOCKER_VERSION=/,  // The default setup script pattern
+		/^#!/,  // Shebang scripts
+	];
+
+	const isSafePattern = safePatterns.some(pattern => pattern.test(trimmedCommand));
+	
+	if (!isSafePattern) {
+		throw new Error(
+			"Invalid server command: Only predefined setup scripts are allowed. " +
+			"Use the default command or contact your administrator."
+		);
+	}
+
+	// Additional security checks: block dangerous characters and command sequences
+	const dangerousPatterns = [
+		/&&\s*(?!echo|DOCKER_VERSION|OS_TYPE|SYS_ARCH|CURRENT_USER|command_exists)/,  // Command chaining (except in safe contexts)
+		/;\s*(?!$|\s*DOCKER_VERSION|OS_TYPE|echo|if|fi|case|esac|done|then|else|for|while|function|\[|\])/,  // Command separation (except in safe contexts)
+		/\$\((?!grep|cut|tr|uname|command)/,  // Command substitution (except safe commands)
+		/`(?!.*`)/,  // Backtick command substitution
+		/\|\s*(?!grep|cut|tr|tee)/,  // Pipe to unexpected commands
+		/>\s*\/dev\/(?!null|stdout|stderr)/,  // Redirection to unexpected devices
+		/wget\s+.*\s*\|\s*(?!grep)/,  // Piping wget output to shell
+		/curl\s+.*\s*\|\s*(?!grep|jq)/,  // Piping curl output to shell (except safe uses)
+		/eval\s+/,  // eval command
+		/exec\s+(?!<|>)/,  // exec command (except file descriptors)
+		/\/etc\/passwd/,  // Accessing password file
+		/\/etc\/shadow/,  // Accessing shadow file
+		/rm\s+-rf\s+\/(?!\s|$)/,  // Dangerous rm operations on root
+	];
+
+	// Check for dangerous patterns with context awareness
+	// Split into lines to check context
+	const lines = trimmedCommand.split('\n');
+	for (const line of lines) {
+		// Skip comments and empty lines
+		if (line.trim().startsWith('#') || !line.trim()) {
+			continue;
+		}
+
+		// Check each dangerous pattern, but be context-aware
+		for (const pattern of dangerousPatterns) {
+			if (pattern.test(line)) {
+				// Allow certain patterns in specific contexts (like within the setup script)
+				const isInSafeContext = 
+					line.includes('command_exists()') ||
+					line.includes('case "$OS_TYPE"') ||
+					line.includes('if [') ||
+					line.includes('echo ') ||
+					/^\s*[A-Z_]+=/.test(line);  // Variable assignments
+				
+				if (!isInSafeContext) {
+					throw new Error(
+						"Invalid server command: Detected potentially dangerous command pattern. " +
+						"Please use the default setup command."
+					);
+				}
+			}
+		}
+	}
+
+	return trimmedCommand;
+};
+
 const installRequirements = async (
 	serverId: string,
 	onData?: (data: any) => void,
@@ -193,7 +281,25 @@ const installRequirements = async (
 	return new Promise<void>((resolve, reject) => {
 		client
 			.once("ready", () => {
-				const command = server.command || defaultCommand();
+				let command: string;
+				try {
+					// Validate the command to prevent injection attacks
+					command = validateServerCommand(server.command || "");
+					
+					// Audit log: Record command execution for security monitoring
+					console.log(
+						`[AUDIT] Executing server setup command on ${server.ipAddress}:${server.port} ` +
+						`(serverId: ${server.serverId}) - Command type: ${server.command ? 'custom' : 'default'}`
+					);
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					console.error(
+						`[AUDIT] Command validation failed for server ${server.serverId}: ${errorMessage}`
+					);
+					onData?.(errorMessage);
+					reject(error);
+					return;
+				}
 				client.exec(command, (err, stream) => {
 					if (err) {
 						onData?.(err.message);
