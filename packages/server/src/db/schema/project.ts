@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -19,9 +19,9 @@ export const projects = pgTable("project", {
 		.$defaultFn(() => nanoid()),
 	name: text("name").notNull(),
 	description: text("description"),
-	createdAt: text("createdAt")
+	createdAt: timestamp("createdAt", { mode: "string" })
 		.notNull()
-		.$defaultFn(() => new Date().toISOString()),
+		.defaultNow(),
 
 	organizationId: text("organizationId")
 		.notNull()

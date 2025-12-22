@@ -5,6 +5,7 @@ import {
 	pgEnum,
 	pgTable,
 	text,
+	timestamp,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
@@ -48,11 +49,11 @@ export const deployments = pgTable("deployment", {
 		(): AnyPgColumn => previewDeployments.previewDeploymentId,
 		{ onDelete: "cascade" },
 	),
-	createdAt: text("createdAt")
+	createdAt: timestamp("createdAt", { mode: "string" })
 		.notNull()
-		.$defaultFn(() => new Date().toISOString()),
-	startedAt: text("startedAt"),
-	finishedAt: text("finishedAt"),
+		.defaultNow(),
+	startedAt: timestamp("startedAt", { mode: "string" }),
+	finishedAt: timestamp("finishedAt", { mode: "string" }),
 	errorMessage: text("errorMessage"),
 	scheduleId: text("scheduleId").references(
 		(): AnyPgColumn => schedules.scheduleId,

@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { sshKeyCreate, sshKeyType } from "../validations";
@@ -17,10 +17,10 @@ export const sshKeys = pgTable("ssh-key", {
 	publicKey: text("publicKey").notNull(),
 	name: text("name").notNull(),
 	description: text("description"),
-	createdAt: text("createdAt")
+	createdAt: timestamp("createdAt", { mode: "string" })
 		.notNull()
-		.$defaultFn(() => new Date().toISOString()),
-	lastUsedAt: text("lastUsedAt"),
+		.defaultNow(),
+	lastUsedAt: timestamp("lastUsedAt", { mode: "string" }),
 	organizationId: text("organizationId")
 		.notNull()
 		.references(() => organization.id, { onDelete: "cascade" }),

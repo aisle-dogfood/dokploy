@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { boolean, pgTable, serial, text } from "drizzle-orm/pg-core";
+import { boolean, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -14,9 +14,9 @@ export const redirects = pgTable("redirect", {
 	replacement: text("replacement").notNull(),
 	permanent: boolean("permanent").notNull().default(false),
 	uniqueConfigKey: serial("uniqueConfigKey"),
-	createdAt: text("createdAt")
+	createdAt: timestamp("createdAt", { mode: "string" })
 		.notNull()
-		.$defaultFn(() => new Date().toISOString()),
+		.defaultNow(),
 	applicationId: text("applicationId")
 		.notNull()
 		.references(() => applications.applicationId, { onDelete: "cascade" }),

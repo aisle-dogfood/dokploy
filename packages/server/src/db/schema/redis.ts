@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { integer, pgTable, text } from "drizzle-orm/pg-core";
+import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -29,9 +29,9 @@ export const redis = pgTable("redis", {
 	cpuReservation: text("cpuReservation"),
 	cpuLimit: text("cpuLimit"),
 	externalPort: integer("externalPort"),
-	createdAt: text("createdAt")
+	createdAt: timestamp("createdAt", { mode: "string" })
 		.notNull()
-		.$defaultFn(() => new Date().toISOString()),
+		.defaultNow(),
 	applicationStatus: applicationStatus("applicationStatus")
 		.notNull()
 		.default("idle"),
