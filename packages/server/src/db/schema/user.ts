@@ -13,6 +13,7 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { account, apikey, organization } from "./account";
 import { backups } from "./backups";
+import { encryptedText } from "./encrypted";
 import { projects } from "./project";
 import { schedules } from "./schedule";
 import { certificateType } from "./shared";
@@ -55,7 +56,7 @@ export const users_temp = pgTable("user_temp", {
 	https: boolean("https").notNull().default(false),
 	host: text("host"),
 	letsEncryptEmail: text("letsEncryptEmail"),
-	sshPrivateKey: text("sshPrivateKey"),
+	sshPrivateKey: encryptedText("sshPrivateKey"),
 	enableDockerCleanup: boolean("enableDockerCleanup").notNull().default(false),
 	logCleanupCron: text("logCleanupCron").default("0 0 * * *"),
 	role: text("role").notNull().default("user"),

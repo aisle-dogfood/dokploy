@@ -4,6 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { backups } from "./backups";
+import { encryptedText } from "./encrypted";
 import { mounts } from "./mount";
 import { projects } from "./project";
 import { server } from "./server";
@@ -22,7 +23,7 @@ export const postgres = pgTable("postgres", {
 		.unique(),
 	databaseName: text("databaseName").notNull(),
 	databaseUser: text("databaseUser").notNull(),
-	databasePassword: text("databasePassword").notNull(),
+	databasePassword: encryptedText("databasePassword").notNull(),
 	description: text("description"),
 	dockerImage: text("dockerImage").notNull(),
 	command: text("command"),

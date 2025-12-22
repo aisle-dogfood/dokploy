@@ -13,6 +13,7 @@ import { z } from "zod";
 import { bitbucket } from "./bitbucket";
 import { deployments } from "./deployment";
 import { domains } from "./domain";
+import { encryptedText } from "./encrypted";
 import { gitea } from "./gitea";
 import { github } from "./github";
 import { gitlab } from "./gitlab";
@@ -174,7 +175,7 @@ export const applications = pgTable("application", {
 	bitbucketBuildPath: text("bitbucketBuildPath").default("/"),
 	// Docker
 	username: text("username"),
-	password: text("password"),
+	password: encryptedText("password"),
 	dockerImage: text("dockerImage"),
 	registryUrl: text("registryUrl"),
 	// Git

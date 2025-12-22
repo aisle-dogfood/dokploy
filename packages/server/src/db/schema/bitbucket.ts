@@ -3,6 +3,7 @@ import { pgTable, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { encryptedText } from "./encrypted";
 import { gitProvider } from "./git-provider";
 
 export const bitbucket = pgTable("bitbucket", {
@@ -11,7 +12,7 @@ export const bitbucket = pgTable("bitbucket", {
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
 	bitbucketUsername: text("bitbucketUsername"),
-	appPassword: text("appPassword"),
+	appPassword: encryptedText("appPassword"),
 	bitbucketWorkspaceName: text("bitbucketWorkspaceName"),
 	gitProviderId: text("gitProviderId")
 		.notNull()
