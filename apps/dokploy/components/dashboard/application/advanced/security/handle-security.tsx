@@ -70,7 +70,9 @@ export const HandleSecurity = ({
 	useEffect(() => {
 		form.reset({
 			username: data?.username || "",
-			password: data?.password || "",
+			// Password is never returned from the server for security reasons
+			// User must enter a new password when updating
+			password: "",
 		});
 	}, [form, form.reset, form.formState.isSubmitSuccessful, data]);
 
@@ -149,9 +151,13 @@ export const HandleSecurity = ({
 								name="password"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Password</FormLabel>
+										<FormLabel>Password{securityId ? " (Enter new password)" : ""}</FormLabel>
 										<FormControl>
-											<Input placeholder="test" type="password" {...field} />
+											<Input 
+												placeholder={securityId ? "Enter new password" : "test"} 
+												type="password" 
+												{...field} 
+											/>
 										</FormControl>
 
 										<FormMessage />

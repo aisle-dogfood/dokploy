@@ -5,6 +5,9 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { applications } from "./application";
 
+// Security table for storing HTTP Basic Auth credentials for applications
+// Note: Password field stores bcrypt hashes (not plaintext) for security
+// The password is hashed before storage and never returned to clients
 export const security = pgTable(
 	"security",
 	{
@@ -13,6 +16,7 @@ export const security = pgTable(
 			.primaryKey()
 			.$defaultFn(() => nanoid()),
 		username: text("username").notNull(),
+		// Password field stores bcrypt hash (e.g., $2b$10$...)
 		password: text("password").notNull(),
 		createdAt: text("createdAt")
 			.notNull()
