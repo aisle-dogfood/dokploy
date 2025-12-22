@@ -26,3 +26,53 @@ If you have discovered a security vulnerability in Dokploy, we ask that you repo
 We are committed to working with you quickly and responsibly to address any legitimate security vulnerability.
 
 Thank you for helping us keep Dokploy secure for everyone.
+
+---
+
+## Security Features
+
+### Encryption at Rest for Sensitive Data
+
+Dokploy implements AES-256-GCM encryption for all sensitive data stored in the database. This includes:
+
+- TLS/SSL private keys and certificates
+- SSH private keys  
+- Cloud storage credentials (S3 access keys, secret keys)
+- Database passwords (MySQL, PostgreSQL, MariaDB, MongoDB, Redis)
+- OAuth tokens (access tokens, refresh tokens, ID tokens)
+- API keys and session tokens
+- SMTP passwords
+- Registry passwords
+- HTTP basic auth credentials
+- Git provider secrets (GitHub, GitLab, Bitbucket, Gitea)
+- Notification service tokens (Slack, Discord, Telegram, Gotify)
+
+For detailed information on the encryption implementation, key management, and migration guide, see [packages/server/ENCRYPTION.md](packages/server/ENCRYPTION.md).
+
+### Security Best Practices
+
+1. **Encryption Key Management**: 
+   - Always use a strong, randomly generated encryption key
+   - Store keys in a secure secrets manager (e.g., AWS KMS, HashiCorp Vault)
+   - Use different keys for different environments (dev, staging, production)
+   - Back up encryption keys securely and separately from database backups
+
+2. **Environment Variables**:
+   - Never commit sensitive environment variables to version control
+   - Use `.env` files locally and secure secrets managers in production
+   - Regularly rotate sensitive credentials
+
+3. **Database Backups**:
+   - Database backups contain encrypted data
+   - Store backups securely with appropriate access controls
+   - Keep encryption keys backed up separately
+
+4. **Access Control**:
+   - Limit access to the application server and database
+   - Use strong authentication mechanisms
+   - Implement principle of least privilege
+
+5. **Updates and Patches**:
+   - Keep Dokploy and all dependencies up to date
+   - Subscribe to security advisories
+   - Test updates in staging before production deployment

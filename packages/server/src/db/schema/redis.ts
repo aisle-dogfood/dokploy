@@ -3,6 +3,7 @@ import { integer, pgTable, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { encryptedText } from "./encrypted-column";
 import { mounts } from "./mount";
 import { projects } from "./project";
 import { server } from "./server";
@@ -20,7 +21,7 @@ export const redis = pgTable("redis", {
 		.$defaultFn(() => generateAppName("redis"))
 		.unique(),
 	description: text("description"),
-	databasePassword: text("password").notNull(),
+	databasePassword: encryptedText("password").notNull(),
 	dockerImage: text("dockerImage").notNull(),
 	command: text("command"),
 	env: text("env"),

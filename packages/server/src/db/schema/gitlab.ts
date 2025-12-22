@@ -3,6 +3,7 @@ import { integer, pgTable, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { encryptedText } from "./encrypted-column";
 import { gitProvider } from "./git-provider";
 
 export const gitlab = pgTable("gitlab", {
@@ -13,9 +14,9 @@ export const gitlab = pgTable("gitlab", {
 	gitlabUrl: text("gitlabUrl").default("https://gitlab.com").notNull(),
 	applicationId: text("application_id"),
 	redirectUri: text("redirect_uri"),
-	secret: text("secret"),
-	accessToken: text("access_token"),
-	refreshToken: text("refresh_token"),
+	secret: encryptedText("secret"),
+	accessToken: encryptedText("access_token"),
+	refreshToken: encryptedText("refresh_token"),
 	groupName: text("group_name"),
 	expiresAt: integer("expires_at"),
 	gitProviderId: text("gitProviderId")

@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { organization } from "./account";
 import { backups } from "./backups";
+import { encryptedText } from "./encrypted-column";
 
 export const destinations = pgTable("destination", {
 	destinationId: text("destinationId")
@@ -13,8 +14,8 @@ export const destinations = pgTable("destination", {
 		.$defaultFn(() => nanoid()),
 	name: text("name").notNull(),
 	provider: text("provider"),
-	accessKey: text("accessKey").notNull(),
-	secretAccessKey: text("secretAccessKey").notNull(),
+	accessKey: encryptedText("accessKey").notNull(),
+	secretAccessKey: encryptedText("secretAccessKey").notNull(),
 	bucket: text("bucket").notNull(),
 	region: text("region").notNull(),
 	endpoint: text("endpoint").notNull(),
