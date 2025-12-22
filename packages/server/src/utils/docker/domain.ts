@@ -32,6 +32,19 @@ import {
 } from "../providers/raw";
 import { randomizeDeployableSpecificationFile } from "./collision";
 import { randomizeSpecificationFile } from "./compose";
+
+/**
+ * Escapes a string for safe use in shell commands by wrapping it in single quotes
+ * and escaping any single quotes within the string.
+ * @param str - The string to escape
+ * @returns The escaped string safe for shell execution
+ */
+const escapeShellArg = (str: string): string => {
+	// Replace single quotes with '\'' (close quote, escaped quote, open quote)
+	// and wrap the entire string in single quotes
+	return `'${str.replace(/'/g, "'\\''")}'`;
+};
+
 import type {
 	ComposeSpecification,
 	DefinitionsService,
@@ -161,21 +174,28 @@ export const writeDomainsToComposeRemote = async (
 	try {
 		const composeConverted = await addDomainToCompose(compose, domains);
 		const path = getComposePath(compose);
+		const escapedLogPath = escapeShellArg(logPath);
+		const escapedPath = escapeShellArg(path);
 
 		if (!composeConverted) {
 			return `
-echo "❌ Error: Compose file not found" >> ${logPath};
+echo "❌ Error: Compose file not found" >> ${escapedLogPath};
 exit 1;
 			`;
 		}
 		if (compose.serverId) {
 			const composeString = dump(composeConverted, { lineWidth: 1000 });
 			const encodedContent = encodeBase64(composeString);
-			return `echo "${encodedContent}" | base64 -d > "${path}";`;
+			const escapedEncodedContent = escapeShellArg(encodedContent);
+			return `echo ${escapedEncodedContent} | base64 -d > ${escapedPath};`;
 		}
 	} catch (error) {
+		const escapedLogPath = escapeShellArg(logPath);
+		// Escape the error message to prevent injection through error messages
+		const errorMessage = String(error?.message || error);
+		const escapedErrorMessage = escapeShellArg(errorMessage);
 		// @ts-ignore
-		return `echo "❌ Has occured an error: ${error?.message || error}" >> ${logPath};
+		return `echo "❌ Has occured an error: ${escapedErrorMessage}" >> ${escapedLogPath};
 exit 1;
 		`;
 	}
