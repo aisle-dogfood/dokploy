@@ -30,7 +30,7 @@ type Schema = z.infer<typeof Schema>;
 
 const DEFAULT_LOCAL_SERVER_DATA: Schema = {
 	port: 22,
-	username: "root",
+	username: "",
 };
 
 /** Returns local server data for use with local server terminal */
@@ -126,7 +126,7 @@ const LocalServerConfig = ({ onSave }: Props) => {
 									<FormItem>
 										<FormLabel>{t("settings.terminal.username")}</FormLabel>
 										<FormControl>
-											<Input placeholder="root" {...field} />
+											<Input placeholder="username" {...field} />
 										</FormControl>
 
 										<FormMessage />

@@ -48,7 +48,9 @@ const Schema = z.object({
 		message: "IP Address is required",
 	}),
 	port: z.number().optional(),
-	username: z.string().optional(),
+	username: z.string().min(1, {
+		message: "Username is required",
+	}),
 	sshKeyId: z.string().min(1, {
 		message: "SSH Key is required",
 	}),
@@ -87,7 +89,7 @@ export const HandleServers = ({ serverId }: Props) => {
 			name: "",
 			ipAddress: "",
 			port: 22,
-			username: "root",
+			username: "",
 			sshKeyId: "",
 		},
 		resolver: zodResolver(Schema),
@@ -99,7 +101,7 @@ export const HandleServers = ({ serverId }: Props) => {
 			name: data?.name || "",
 			ipAddress: data?.ipAddress || "",
 			port: data?.port || 22,
-			username: data?.username || "root",
+			username: data?.username || "",
 			sshKeyId: data?.sshKeyId || "",
 		});
 	}, [form, form.reset, form.formState.isSubmitSuccessful, data]);
@@ -114,7 +116,7 @@ export const HandleServers = ({ serverId }: Props) => {
 			description: data.description || "",
 			ipAddress: data.ipAddress || "",
 			port: data.port || 22,
-			username: data.username || "root",
+			username: data.username,
 			sshKeyId: data.sshKeyId || "",
 			serverId: serverId || "",
 		})
