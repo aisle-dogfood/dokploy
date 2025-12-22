@@ -6,6 +6,7 @@ import { sshKeyCreate, sshKeyType } from "../validations";
 import { organization } from "./account";
 import { applications } from "./application";
 import { compose } from "./compose";
+import { encryptedText } from "./encryption-helpers";
 import { server } from "./server";
 
 export const sshKeys = pgTable("ssh-key", {
@@ -13,7 +14,7 @@ export const sshKeys = pgTable("ssh-key", {
 		.notNull()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	privateKey: text("privateKey").notNull().default(""),
+	privateKey: encryptedText("privateKey").notNull().default(""),
 	publicKey: text("publicKey").notNull(),
 	name: text("name").notNull(),
 	description: text("description"),

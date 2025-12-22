@@ -4,6 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { organization } from "./account";
+import { encryptedText } from "./encryption-helpers";
 
 export const notificationType = pgEnum("notificationType", [
 	"slack",
@@ -85,7 +86,7 @@ export const email = pgTable("email", {
 	smtpServer: text("smtpServer").notNull(),
 	smtpPort: integer("smtpPort").notNull(),
 	username: text("username").notNull(),
-	password: text("password").notNull(),
+	password: encryptedText("password").notNull(),
 	fromAddress: text("fromAddress").notNull(),
 	toAddresses: text("toAddress").array().notNull(),
 });
