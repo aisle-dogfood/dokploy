@@ -97,6 +97,13 @@ export const execAsyncRemote = async (
 	const server = await findServerById(serverId);
 	if (!server.sshKeyId) throw new Error("No SSH key available for this server");
 
+	// Security check: Warn about root username usage
+	if (server.username === "root") {
+		console.warn(
+			`WARNING: Using 'root' user for SSH connections to server ${server.name} (${server.ipAddress}). This is not recommended for security reasons.`,
+		);
+	}
+
 	let stdout = "";
 	let stderr = "";
 	return new Promise((resolve, reject) => {

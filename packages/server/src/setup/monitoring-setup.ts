@@ -10,6 +10,13 @@ import { getRemoteDocker } from "../utils/servers/remote-docker";
 export const setupMonitoring = async (serverId: string) => {
 	const server = await findServerById(serverId);
 
+	// Security check: Ensure monitoring token is not empty
+	if (!server.metricsConfig.server.token || server.metricsConfig.server.token.trim() === "") {
+		throw new Error(
+			"Monitoring token is required for security. Please configure a non-empty token before starting the monitoring agent.",
+		);
+	}
+
 	const containerName = "dokploy-monitoring";
 	let imageName = "dokploy/monitoring:latest";
 
@@ -85,6 +92,13 @@ export const setupMonitoring = async (serverId: string) => {
 
 export const setupWebMonitoring = async (userId: string) => {
 	const user = await findUserById(userId);
+
+	// Security check: Ensure monitoring token is not empty
+	if (!user?.metricsConfig?.server?.token || user.metricsConfig.server.token.trim() === "") {
+		throw new Error(
+			"Monitoring token is required for security. Please configure a non-empty token before starting the monitoring agent.",
+		);
+	}
 
 	const containerName = "dokploy-monitoring";
 	let imageName = "dokploy/monitoring:latest";

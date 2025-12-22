@@ -86,6 +86,13 @@ export const serverValidate = async (serverId: string) => {
 		throw new Error("No SSH Key found");
 	}
 
+	// Security check: Warn about root username usage
+	if (server.username === "root") {
+		console.warn(
+			`WARNING: Using 'root' user for SSH connections to server ${server.name} (${server.ipAddress}). This is not recommended for security reasons. Please use a dedicated non-root user with appropriate sudo privileges.`,
+		);
+	}
+
 	return new Promise<string>((resolve, reject) => {
 		client
 			.once("ready", () => {
