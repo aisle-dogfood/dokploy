@@ -62,6 +62,13 @@ export const postgresRelations = relations(postgres, ({ one, many }) => ({
 const createSchema = createInsertSchema(postgres, {
 	postgresId: z.string(),
 	name: z.string().min(1),
+	appName: z
+		.string()
+		.min(1)
+		.regex(
+			/^[a-zA-Z0-9._-]+$/,
+			"appName must contain only alphanumeric characters, dots, underscores, and hyphens",
+		),
 	databasePassword: z.string(),
 	databaseName: z.string().min(1),
 	databaseUser: z.string().min(1),

@@ -60,7 +60,13 @@ export const mongoRelations = relations(mongo, ({ one, many }) => ({
 }));
 
 const createSchema = createInsertSchema(mongo, {
-	appName: z.string().min(1),
+	appName: z
+		.string()
+		.min(1)
+		.regex(
+			/^[a-zA-Z0-9._-]+$/,
+			"appName must contain only alphanumeric characters, dots, underscores, and hyphens",
+		),
 	createdAt: z.string(),
 	mongoId: z.string(),
 	name: z.string().min(1),

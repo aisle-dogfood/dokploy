@@ -147,6 +147,13 @@ export const composeRelations = relations(compose, ({ one, many }) => ({
 
 const createSchema = createInsertSchema(compose, {
 	name: z.string().min(1),
+	appName: z
+		.string()
+		.min(1)
+		.regex(
+			/^[a-zA-Z0-9._-]+$/,
+			"appName must contain only alphanumeric characters, dots, underscores, and hyphens",
+		),
 	description: z.string(),
 	env: z.string().optional(),
 	composeFile: z.string().optional(),

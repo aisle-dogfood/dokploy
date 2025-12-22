@@ -21,6 +21,19 @@ import {
 	execAsync,
 	execAsyncRemote,
 } from "@dokploy/server/utils/process/execAsync";
+import { spawnAsync } from "@dokploy/server/utils/process/spawnAsync";
+
+/**
+ * Validates that appName contains only safe characters to prevent command injection.
+ * Only allows alphanumeric characters, dots, underscores, and hyphens.
+ */
+const validateAppName = (appName: string): void => {
+	if (!/^[a-zA-Z0-9._-]+$/.test(appName)) {
+		throw new Error(
+			"Invalid appName: must contain only alphanumeric characters, dots, underscores, and hyphens",
+		);
+	}
+};
 import {
 	cloneBitbucketRepository,
 	getBitbucketCloneCommand,
@@ -474,13 +487,14 @@ export const removeCompose = async (
 	deleteVolumes: boolean,
 ) => {
 	try {
+		validateAppName(compose.appName);
 		const { COMPOSE_PATH } = paths(!!compose.serverId);
 		const projectPath = join(COMPOSE_PATH, compose.appName);
 
 		if (compose.composeType === "stack") {
 			const command = `
-			docker network disconnect ${compose.appName} dokploy-traefik;
-			cd ${projectPath} && docker stack rm ${compose.appName} && rm -rf ${projectPath}`;
+			docker network disconnect "${compose.appName}" dokploy-traefik;
+			cd "${projectPath}" && docker stack rm "${compose.appName}" && rm -rf "${projectPath}"`;
 
 			if (compose.serverId) {
 				await execAsyncRemote(compose.serverId, command);
@@ -492,10 +506,10 @@ export const removeCompose = async (
 			});
 		} else {
 			const command = `
-			 docker network disconnect ${compose.appName} dokploy-traefik;
-			cd ${projectPath} && docker compose -p ${compose.appName} down ${
+			 docker network disconnect "${compose.appName}" dokploy-traefik;
+			cd "${projectPath}" && docker compose -p "${compose.appName}" down ${
 				deleteVolumes ? "--volumes" : ""
-			} && rm -rf ${projectPath}`;
+			} && rm -rf "${projectPath}"`;
 
 			if (compose.serverId) {
 				await execAsyncRemote(compose.serverId, command);
@@ -515,6 +529,7 @@ export const removeCompose = async (
 export const startCompose = async (composeId: string) => {
 	const compose = await findComposeById(composeId);
 	try {
+		validateAppName(compose.appName);
 		const { COMPOSE_PATH } = paths(!!compose.serverId);
 		if (compose.composeType === "docker-compose") {
 			if (compose.serverId) {
@@ -524,12 +539,17 @@ export const startCompose = async (composeId: string) => {
 						COMPOSE_PATH,
 						compose.appName,
 						"code",
-					)} && docker compose -p ${compose.appName} up -d`,
+					)} && docker compose -p "${compose.appName}" up -d`,
 				);
 			} else {
-				await execAsync(`docker compose -p ${compose.appName} up -d`, {
-					cwd: join(COMPOSE_PATH, compose.appName, "code"),
-				});
+				await spawnAsync(
+					"docker",
+					["compose", "-p", compose.appName, "up", "-d"],
+					undefined,
+					{
+						cwd: join(COMPOSE_PATH, compose.appName, "code"),
+					},
+				);
 			}
 		}
 
@@ -549,19 +569,25 @@ export const startCompose = async (composeId: string) => {
 export const stopCompose = async (composeId: string) => {
 	const compose = await findComposeById(composeId);
 	try {
+		validateAppName(compose.appName);
 		const { COMPOSE_PATH } = paths(!!compose.serverId);
 		if (compose.composeType === "docker-compose") {
 			if (compose.serverId) {
 				await execAsyncRemote(
 					compose.serverId,
-					`cd ${join(COMPOSE_PATH, compose.appName)} && docker compose -p ${
+					`cd ${join(COMPOSE_PATH, compose.appName)} && docker compose -p "${
 						compose.appName
-					} stop`,
+					}" stop`,
 				);
 			} else {
-				await execAsync(`docker compose -p ${compose.appName} stop`, {
-					cwd: join(COMPOSE_PATH, compose.appName),
-				});
+				await spawnAsync(
+					"docker",
+					["compose", "-p", compose.appName, "stop"],
+					undefined,
+					{
+						cwd: join(COMPOSE_PATH, compose.appName),
+					},
+				);
 			}
 		}
 
@@ -569,10 +595,10 @@ export const stopCompose = async (composeId: string) => {
 			if (compose.serverId) {
 				await execAsyncRemote(
 					compose.serverId,
-					`docker stack rm ${compose.appName}`,
+					`docker stack rm "${compose.appName}"`,
 				);
 			} else {
-				await execAsync(`docker stack rm ${compose.appName}`);
+				await spawnAsync("docker", ["stack", "rm", compose.appName]);
 			}
 		}
 

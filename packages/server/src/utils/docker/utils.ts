@@ -15,6 +15,18 @@ import { execAsync, execAsyncRemote } from "../process/execAsync";
 import { spawnAsync } from "../process/spawnAsync";
 import { getRemoteDocker } from "../servers/remote-docker";
 
+/**
+ * Validates that appName contains only safe characters to prevent command injection.
+ * Only allows alphanumeric characters, dots, underscores, and hyphens.
+ */
+const validateAppName = (appName: string): void => {
+	if (!/^[a-zA-Z0-9._-]+$/.test(appName)) {
+		throw new Error(
+			"Invalid appName: must contain only alphanumeric characters, dots, underscores, and hyphens",
+		);
+	}
+};
+
 interface RegistryAuth {
 	username: string;
 	password: string;
@@ -108,7 +120,8 @@ export const containerExists = async (containerName: string) => {
 
 export const stopService = async (appName: string) => {
 	try {
-		await execAsync(`docker service scale ${appName}=0 `);
+		validateAppName(appName);
+		await spawnAsync("docker", ["service", "scale", `${appName}=0`]);
 	} catch (error) {
 		console.error(error);
 		return error;
@@ -117,7 +130,8 @@ export const stopService = async (appName: string) => {
 
 export const stopServiceRemote = async (serverId: string, appName: string) => {
 	try {
-		await execAsyncRemote(serverId, `docker service scale ${appName}=0 `);
+		validateAppName(appName);
+		await execAsyncRemote(serverId, `docker service scale "${appName}=0"`);
 	} catch (error) {
 		console.error(error);
 		return error;
@@ -222,7 +236,8 @@ export const cleanUpSystemPrune = async (serverId?: string) => {
 
 export const startService = async (appName: string) => {
 	try {
-		await execAsync(`docker service scale ${appName}=1 `);
+		validateAppName(appName);
+		await spawnAsync("docker", ["service", "scale", `${appName}=1`]);
 	} catch (error) {
 		console.error(error);
 		throw error;
@@ -231,7 +246,8 @@ export const startService = async (appName: string) => {
 
 export const startServiceRemote = async (serverId: string, appName: string) => {
 	try {
-		await execAsyncRemote(serverId, `docker service scale ${appName}=1 `);
+		validateAppName(appName);
+		await execAsyncRemote(serverId, `docker service scale "${appName}=1"`);
 	} catch (error) {
 		console.error(error);
 		throw error;
@@ -244,12 +260,12 @@ export const removeService = async (
 	_deleteVolumes = false,
 ) => {
 	try {
-		const command = `docker service rm ${appName}`;
-
+		validateAppName(appName);
+		
 		if (serverId) {
-			await execAsyncRemote(serverId, command);
+			await execAsyncRemote(serverId, `docker service rm "${appName}"`);
 		} else {
-			await execAsync(command);
+			await spawnAsync("docker", ["service", "rm", appName]);
 		}
 	} catch (error) {
 		return error;

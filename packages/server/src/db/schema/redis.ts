@@ -57,7 +57,13 @@ export const redisRelations = relations(redis, ({ one, many }) => ({
 
 const createSchema = createInsertSchema(redis, {
 	redisId: z.string(),
-	appName: z.string().min(1),
+	appName: z
+		.string()
+		.min(1)
+		.regex(
+			/^[a-zA-Z0-9._-]+$/,
+			"appName must contain only alphanumeric characters, dots, underscores, and hyphens",
+		),
 	createdAt: z.string(),
 	name: z.string().min(1),
 	databasePassword: z.string(),
