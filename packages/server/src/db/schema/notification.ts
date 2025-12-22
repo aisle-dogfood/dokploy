@@ -3,6 +3,7 @@ import { boolean, integer, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { encryptedText } from "../../utils/encryption";
 import { organization } from "./account";
 
 export const notificationType = pgEnum("notificationType", [
@@ -54,7 +55,7 @@ export const slack = pgTable("slack", {
 		.notNull()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	webhookUrl: text("webhookUrl").notNull(),
+	webhookUrl: encryptedText().notNull(),
 	channel: text("channel"),
 });
 
@@ -63,7 +64,7 @@ export const telegram = pgTable("telegram", {
 		.notNull()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	botToken: text("botToken").notNull(),
+	botToken: encryptedText().notNull(),
 	chatId: text("chatId").notNull(),
 	messageThreadId: text("messageThreadId"),
 });
@@ -73,7 +74,7 @@ export const discord = pgTable("discord", {
 		.notNull()
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
-	webhookUrl: text("webhookUrl").notNull(),
+	webhookUrl: encryptedText().notNull(),
 	decoration: boolean("decoration"),
 });
 
@@ -85,7 +86,7 @@ export const email = pgTable("email", {
 	smtpServer: text("smtpServer").notNull(),
 	smtpPort: integer("smtpPort").notNull(),
 	username: text("username").notNull(),
-	password: text("password").notNull(),
+	password: encryptedText().notNull(),
 	fromAddress: text("fromAddress").notNull(),
 	toAddresses: text("toAddress").array().notNull(),
 });
@@ -96,7 +97,7 @@ export const gotify = pgTable("gotify", {
 		.primaryKey()
 		.$defaultFn(() => nanoid()),
 	serverUrl: text("serverUrl").notNull(),
-	appToken: text("appToken").notNull(),
+	appToken: encryptedText().notNull(),
 	priority: integer("priority").notNull().default(5),
 	decoration: boolean("decoration"),
 });
