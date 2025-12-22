@@ -1,6 +1,7 @@
 import type { WriteStream } from "node:fs";
 import type { ApplicationNested } from "../builders";
 import { spawnAsync } from "../process/spawnAsync";
+import { escapeShellArg } from "../process/shellEscape";
 
 export const uploadImage = async (
 	application: ApplicationNested,
@@ -81,23 +82,34 @@ export const uploadImageRemoteCommand = (
 		: `${registryUrl}/${username}/${imageName}`;
 
 	try {
+		// Escape all user-controlled inputs to prevent command injection
+		const escapedRegistryType = escapeShellArg(registry.registryType);
+		const escapedRegistryTag = escapeShellArg(registryTag);
+		const escapedPassword = escapeShellArg(registry.password);
+		const escapedFinalURL = escapeShellArg(finalURL);
+		const escapedUsername = escapeShellArg(registry.username);
+		const escapedImageName = escapeShellArg(imageName);
+		const escapedLogPath = escapeShellArg(logPath);
+
+		// Use printf instead of echo for password to avoid interpretation and logging issues
+		// Redirect docker login output to /dev/null to prevent credential leakage in logs
 		const command = `
-		echo "📦 [Enabled Registry] Uploading image to '${registry.registryType}' | '${registryTag}'" >> ${logPath};
-		echo "${registry.password}" | docker login ${finalURL} -u ${registry.username} --password-stdin >> ${logPath} 2>> ${logPath} || { 
-			echo "❌ DockerHub Failed" >> ${logPath};
+		echo "📦 [Enabled Registry] Uploading image to ${escapedRegistryType} | ${escapedRegistryTag}" >> ${escapedLogPath};
+		printf '%s' ${escapedPassword} | docker login ${escapedFinalURL} -u ${escapedUsername} --password-stdin > /dev/null 2>&1 || { 
+			echo "❌ Registry Login Failed" >> ${escapedLogPath};
 			exit 1;
 		}
-		echo "✅ Registry Login Success" >> ${logPath};
-		docker tag ${imageName} ${registryTag} >> ${logPath} 2>> ${logPath} || { 
-			echo "❌ Error tagging image" >> ${logPath};
+		echo "✅ Registry Login Success" >> ${escapedLogPath};
+		docker tag ${escapedImageName} ${escapedRegistryTag} >> ${escapedLogPath} 2>> ${escapedLogPath} || { 
+			echo "❌ Error tagging image" >> ${escapedLogPath};
 			exit 1;
 		}
-		echo "✅ Image Tagged" >> ${logPath};
-		docker push ${registryTag} 2>> ${logPath} || { 
-			echo "❌ Error pushing image" >> ${logPath};
+		echo "✅ Image Tagged" >> ${escapedLogPath};
+		docker push ${escapedRegistryTag} 2>> ${escapedLogPath} || { 
+			echo "❌ Error pushing image" >> ${escapedLogPath};
 			exit 1;
 		}
-			echo "✅ Image Pushed" >> ${logPath};
+			echo "✅ Image Pushed" >> ${escapedLogPath};
 		`;
 		return command;
 	} catch (error) {
