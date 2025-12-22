@@ -52,8 +52,14 @@ const queue = new Queue({
 
 (async () => {
 	await redisClient.connect();
-	await redisClient.flushAll();
-	logger.info("Redis Cleaned");
+	// Only flush Redis in development/test environments to prevent data loss
+	// in shared Redis instances used by multiple services
+	if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
+		await redisClient.flushAll();
+		logger.info("Redis Cleaned (development/test mode)");
+	} else {
+		logger.info("Redis Connected (flushAll skipped in production)");
+	}
 })();
 
 const port = Number.parseInt(process.env.PORT || "3000");
