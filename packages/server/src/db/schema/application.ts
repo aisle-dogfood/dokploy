@@ -535,7 +535,11 @@ export const apiSaveDockerProvider = createSchema
 		password: true,
 		registryUrl: true,
 	})
-	.required();
+	.required()
+	.extend({
+		// Make password optional for updates (only required when setting new password)
+		password: z.string().nullable(),
+	});
 
 export const apiSaveGitProvider = createSchema
 	.pick({

@@ -48,9 +48,14 @@ export const registryRouter = createTRPCRouter({
 					message: "You are not allowed to update this registry",
 				});
 			}
-			const application = await updateRegistry(registryId, {
-				...rest,
-			});
+
+			// Only include password in update if a new one is provided
+			const updateData = { ...rest };
+			if (!updateData.password) {
+				delete updateData.password;
+			}
+
+			const application = await updateRegistry(registryId, updateData);
 
 			if (!application) {
 				throw new TRPCError({
@@ -65,7 +70,9 @@ export const registryRouter = createTRPCRouter({
 		const registryResponse = await db.query.registry.findMany({
 			where: eq(registry.organizationId, ctx.session.activeOrganizationId),
 		});
-		return registryResponse;
+
+		// Exclude sensitive password fields from response for security
+		return registryResponse.map(({ password, ...reg }) => reg);
 	}),
 	one: adminProcedure
 		.input(apiFindOneRegistry)
@@ -77,7 +84,10 @@ export const registryRouter = createTRPCRouter({
 					message: "You are not allowed to access this registry",
 				});
 			}
-			return registry;
+
+			// Exclude sensitive password field from response for security
+			const { password, ...registryWithoutPassword } = registry;
+			return registryWithoutPassword;
 		}),
 	testRegistry: protectedProcedure
 		.input(apiTestRegistry)
