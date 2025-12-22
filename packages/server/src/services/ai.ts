@@ -33,17 +33,23 @@ export const getAiSettingById = async (aiId: string) => {
 export const saveAiSettings = async (organizationId: string, settings: any) => {
 	const aiId = settings.aiId;
 
+	// Filter out empty apiKey to prevent overwriting with empty string
+	const settingsToSave = { ...settings };
+	if (settingsToSave.apiKey === "" || settingsToSave.apiKey === undefined) {
+		delete settingsToSave.apiKey;
+	}
+
 	return db
 		.insert(ai)
 		.values({
 			aiId,
 			organizationId,
-			...settings,
+			...settingsToSave,
 		})
 		.onConflictDoUpdate({
 			target: ai.aiId,
 			set: {
-				...settings,
+				...settingsToSave,
 			},
 		});
 };

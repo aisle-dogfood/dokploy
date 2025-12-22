@@ -43,7 +43,11 @@ export const aiRouter = createTRPCRouter({
 					message: "You don't have access to this AI configuration",
 				});
 			}
-			return aiSetting;
+			// Redact API key to prevent exposure to the client
+			return {
+				...aiSetting,
+				apiKey: "",
+			};
 		}),
 
 	getModels: protectedProcedure
@@ -52,6 +56,67 @@ export const aiRouter = createTRPCRouter({
 			try {
 				const headers = getProviderHeaders(input.apiUrl, input.apiKey);
 				const response = await fetch(`${input.apiUrl}/models`, { headers });
+
+				if (!response.ok) {
+					const errorText = await response.text();
+					throw new Error(`Failed to fetch models: ${errorText}`);
+				}
+
+				const res = await response.json();
+
+				if (Array.isArray(res)) {
+					return res.map((model) => ({
+						id: model.id || model.name,
+						object: "model",
+						created: Date.now(),
+						owned_by: "provider",
+					}));
+				}
+
+				if (res.models) {
+					return res.models.map((model: any) => ({
+						id: model.id || model.name,
+						object: "model",
+						created: Date.now(),
+						owned_by: "provider",
+					})) as Model[];
+				}
+
+				if (res.data) {
+					return res.data as Model[];
+				}
+
+				const possibleModels =
+					(Object.values(res).find(Array.isArray) as any[]) || [];
+				return possibleModels.map((model) => ({
+					id: model.id || model.name,
+					object: "model",
+					created: Date.now(),
+					owned_by: "provider",
+				})) as Model[];
+			} catch (error) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: error instanceof Error ? error?.message : `Error: ${error}`,
+				});
+			}
+		}),
+	
+	getModelsForAi: protectedProcedure
+		.input(z.object({ aiId: z.string() }))
+		.query(async ({ ctx, input }) => {
+			try {
+				const aiSetting = await getAiSettingById(input.aiId);
+				if (aiSetting.organizationId !== ctx.session.activeOrganizationId) {
+					throw new TRPCError({
+						code: "UNAUTHORIZED",
+						message: "You don't have access to this AI configuration",
+					});
+				}
+
+				// Fetch models server-side using stored credentials
+				const headers = getProviderHeaders(aiSetting.apiUrl, aiSetting.apiKey);
+				const response = await fetch(`${aiSetting.apiUrl}/models`, { headers });
 
 				if (!response.ok) {
 					const errorText = await response.text();
@@ -108,9 +173,14 @@ export const aiRouter = createTRPCRouter({
 		}),
 
 	getAll: adminProcedure.query(async ({ ctx }) => {
-		return await getAiSettingsByOrganizationId(
+		const settings = await getAiSettingsByOrganizationId(
 			ctx.session.activeOrganizationId,
 		);
+		// Redact API keys to prevent exposure to the client
+		return settings.map((setting) => ({
+			...setting,
+			apiKey: "",
+		}));
 	}),
 
 	get: protectedProcedure
@@ -123,7 +193,11 @@ export const aiRouter = createTRPCRouter({
 					message: "You don't have access to this AI configuration",
 				});
 			}
-			return aiSetting;
+			// Redact API key to prevent exposure to the client
+			return {
+				...aiSetting,
+				apiKey: "",
+			};
 		}),
 
 	delete: protectedProcedure
