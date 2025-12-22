@@ -6,17 +6,181 @@ import { deploy } from "@/server/utils/deploy";
 import { IS_CLOUD, shouldDeploy } from "@dokploy/server";
 import { eq } from "drizzle-orm";
 import type { NextApiRequest, NextApiResponse } from "next";
+import crypto from "crypto";
+
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 10; // Max 10 requests per minute per token
+const MAX_FAILED_ATTEMPTS = 5; // Max 5 failed attempts per IP per window
+
+// In-memory rate limiting stores
+const requestCounts = new Map<string, { count: number; resetTime: number }>();
+const failedAttempts = new Map<string, { count: number; resetTime: number; blockedUntil?: number }>();
+
+// Clean up old entries periodically (every 5 minutes)
+setInterval(() => {
+	const now = Date.now();
+	for (const [key, value] of requestCounts.entries()) {
+		if (now > value.resetTime) {
+			requestCounts.delete(key);
+		}
+	}
+	for (const [key, value] of failedAttempts.entries()) {
+		if (now > value.resetTime && (!value.blockedUntil || now > value.blockedUntil)) {
+			failedAttempts.delete(key);
+		}
+	}
+}, 5 * 60 * 1000);
+
+/**
+ * Check if request should be rate limited
+ */
+function checkRateLimit(identifier: string): boolean {
+	const now = Date.now();
+	const record = requestCounts.get(identifier);
+
+	if (!record || now > record.resetTime) {
+		requestCounts.set(identifier, {
+			count: 1,
+			resetTime: now + RATE_LIMIT_WINDOW_MS,
+		});
+		return true;
+	}
+
+	if (record.count >= MAX_REQUESTS_PER_WINDOW) {
+		return false;
+	}
+
+	record.count++;
+	return true;
+}
+
+/**
+ * Track failed authentication attempts and implement temporary blocking
+ */
+function trackFailedAttempt(ip: string): boolean {
+	const now = Date.now();
+	const record = failedAttempts.get(ip);
+
+	if (!record || now > record.resetTime) {
+		failedAttempts.set(ip, {
+			count: 1,
+			resetTime: now + RATE_LIMIT_WINDOW_MS,
+		});
+		return true;
+	}
+
+	// Check if IP is currently blocked
+	if (record.blockedUntil && now < record.blockedUntil) {
+		return false;
+	}
+
+	record.count++;
+
+	// Block IP if too many failed attempts
+	if (record.count >= MAX_FAILED_ATTEMPTS) {
+		record.blockedUntil = now + (15 * 60 * 1000); // Block for 15 minutes
+		console.warn(`[Security] IP ${ip} blocked due to excessive failed authentication attempts`);
+		return false;
+	}
+
+	return true;
+}
+
+/**
+ * Validate that the request comes from a known provider
+ */
+function validateProviderHeaders(headers: NextApiRequest["headers"]): boolean {
+	const validProviderHeaders = [
+		"x-github-event",
+		"x-gitlab-event", 
+		"x-gitea-event",
+		"x-event-key", // Bitbucket
+	];
+
+	// Check for known provider headers
+	const hasProviderHeader = validProviderHeaders.some(header => headers[header]);
+	
+	// Docker Hub uses Go-http-client user agent
+	const isDockerHub = headers["user-agent"]?.includes("Go-http-client");
+
+	return hasProviderHeader || isDockerHub;
+}
+
+/**
+ * Timing-safe token comparison to prevent timing attacks
+ */
+function timingSafeTokenCompare(a: string, b: string): boolean {
+	if (a.length !== b.length) {
+		return false;
+	}
+	return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+/**
+ * Get client IP address
+ */
+function getClientIp(req: NextApiRequest): string {
+	const forwarded = req.headers["x-forwarded-for"];
+	const ip = forwarded 
+		? (typeof forwarded === "string" ? forwarded.split(",")[0] : forwarded[0])
+		: req.socket.remoteAddress || "unknown";
+	return ip;
+}
 
 export default async function handler(
 	req: NextApiRequest,
 	res: NextApiResponse,
 ) {
 	const { refreshToken } = req.query;
+	const clientIp = getClientIp(req);
+
 	try {
+		// Validate that refreshToken is provided
+		if (!refreshToken || typeof refreshToken !== "string") {
+			console.warn(`[Security] Webhook request missing refreshToken from IP: ${clientIp}`);
+			res.status(400).json({ message: "Invalid request" });
+			return;
+		}
+
+		// Check for ping events early
 		if (req.headers["x-github-event"] === "ping") {
 			res.status(200).json({ message: "Ping received, webhook is active" });
 			return;
 		}
+
+		// Validate provider headers to ensure request is from a known source
+		if (!validateProviderHeaders(req.headers)) {
+			console.warn(`[Security] Webhook request from IP ${clientIp} missing expected provider headers`);
+			trackFailedAttempt(clientIp);
+			res.status(403).json({ 
+				message: "Request must include valid provider headers (GitHub, GitLab, Gitea, Bitbucket, or Docker Hub)" 
+			});
+			return;
+		}
+
+		// Check if IP is blocked due to failed attempts
+		const ipBlocked = failedAttempts.get(clientIp);
+		if (ipBlocked?.blockedUntil && Date.now() < ipBlocked.blockedUntil) {
+			console.warn(`[Security] Blocked webhook request from IP: ${clientIp} (too many failed attempts)`);
+			res.status(429).json({ message: "Too many failed attempts. Please try again later." });
+			return;
+		}
+
+		// Rate limit by token
+		if (!checkRateLimit(refreshToken)) {
+			console.warn(`[Security] Rate limit exceeded for token: ${refreshToken.substring(0, 8)}... from IP: ${clientIp}`);
+			res.status(429).json({ message: "Rate limit exceeded. Please try again later." });
+			return;
+		}
+
+		// Rate limit by IP
+		if (!checkRateLimit(`ip:${clientIp}`)) {
+			console.warn(`[Security] Rate limit exceeded for IP: ${clientIp}`);
+			res.status(429).json({ message: "Rate limit exceeded. Please try again later." });
+			return;
+		}
+
 		const application = await db.query.applications.findFirst({
 			where: eq(applications.refreshToken, refreshToken as string),
 			with: {
@@ -26,6 +190,16 @@ export default async function handler(
 		});
 
 		if (!application) {
+			console.warn(`[Security] Invalid webhook token attempt from IP: ${clientIp}`);
+			trackFailedAttempt(clientIp);
+			res.status(404).json({ message: "Application Not Found" });
+			return;
+		}
+
+		// Verify token using timing-safe comparison
+		if (!timingSafeTokenCompare(application.refreshToken || "", refreshToken)) {
+			console.warn(`[Security] Token mismatch for application ${application.applicationId} from IP: ${clientIp}`);
+			trackFailedAttempt(clientIp);
 			res.status(404).json({ message: "Application Not Found" });
 			return;
 		}
@@ -188,6 +362,16 @@ export default async function handler(
 				server: !!application.serverId,
 			};
 
+			// Log successful webhook deployment for monitoring
+			const provider = getProviderByHeader(req.headers) || "unknown";
+			console.log(
+				`[Security] Webhook deployment triggered: ` +
+				`application=${application.applicationId}, ` +
+				`provider=${provider}, ` +
+				`ip=${clientIp}, ` +
+				`branch=${extractBranchName(req.headers, req.body) || "N/A"}`
+			);
+
 			if (IS_CLOUD && application.serverId) {
 				jobData.serverId = application.serverId;
 				await deploy(jobData);
@@ -202,6 +386,7 @@ export default async function handler(
 				},
 			);
 		} catch (error) {
+			console.error(`[Security] Deployment error for application ${application.applicationId} from IP ${clientIp}:`, error);
 			res.status(400).json({ message: "Error deploying Application", error });
 			return;
 		}
