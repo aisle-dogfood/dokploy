@@ -1,6 +1,7 @@
 import { createWriteStream } from "node:fs";
 import { type ApplicationNested, mechanizeDockerContainer } from "../builders";
 import { pullImage } from "../docker/utils";
+import { escapeShellArg } from "../process/shellEscape";
 
 interface RegistryAuth {
 	username: string;
@@ -59,26 +60,37 @@ export const buildRemoteDocker = async (
 		if (!dockerImage) {
 			throw new Error("Docker image not found");
 		}
+
+		// Escape all user-controlled inputs to prevent command injection
+		const escapedDockerImage = escapeShellArg(dockerImage);
+		const escapedLogPath = escapeShellArg(logPath);
+
 		let command = `
-echo "Pulling ${dockerImage}" >> ${logPath};		
+echo "Pulling ${escapedDockerImage}" >> ${escapedLogPath};		
 		`;
 
 		if (username && password) {
+			// Escape credentials and use printf instead of echo to prevent interpretation
+			const escapedUsername = escapeShellArg(username);
+			const escapedPassword = escapeShellArg(password);
+			const escapedRegistryUrl = escapeShellArg(registryUrl || "");
+
 			command += `
-if ! echo "${password}" | docker login --username "${username}" --password-stdin "${registryUrl || ""}" >> ${logPath} 2>&1; then
-	echo "❌ Login failed" >> ${logPath};
+if ! printf '%s' ${escapedPassword} | docker login --username ${escapedUsername} --password-stdin ${escapedRegistryUrl} > /dev/null 2>&1; then
+	echo "❌ Login failed" >> ${escapedLogPath};
 	exit 1;
 fi
+echo "✅ Registry Login Success" >> ${escapedLogPath};
 `;
 		}
 
 		command += `
-docker pull ${dockerImage} >> ${logPath} 2>> ${logPath} || { 
-  echo "❌ Pulling image failed" >> ${logPath};
+docker pull ${escapedDockerImage} >> ${escapedLogPath} 2>> ${escapedLogPath} || { 
+  echo "❌ Pulling image failed" >> ${escapedLogPath};
   exit 1;
 }
 
-echo "✅ Pulling image completed." >> ${logPath};
+echo "✅ Pulling image completed." >> ${escapedLogPath};
 `;
 		return command;
 	} catch (error) {

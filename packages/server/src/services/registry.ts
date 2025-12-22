@@ -4,6 +4,7 @@ import {
 	execAsync,
 	execAsyncRemote,
 } from "@dokploy/server/utils/process/execAsync";
+import { escapeShellArg } from "@dokploy/server/utils/process/shellEscape";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { IS_CLOUD } from "../constants";
@@ -37,7 +38,12 @@ export const createRegistry = async (
 				message: "Select a server to add the registry",
 			});
 		}
-		const loginCommand = `echo ${input.password} | docker login ${input.registryUrl} --username ${input.username} --password-stdin`;
+		// Escape all user inputs to prevent command injection
+		const escapedPassword = escapeShellArg(input.password);
+		const escapedRegistryUrl = escapeShellArg(input.registryUrl);
+		const escapedUsername = escapeShellArg(input.username);
+		// Use printf instead of echo to prevent password interpretation, redirect to /dev/null to avoid logging credentials
+		const loginCommand = `printf '%s' ${escapedPassword} | docker login ${escapedRegistryUrl} --username ${escapedUsername} --password-stdin > /dev/null 2>&1`;
 		if (input.serverId && input.serverId !== "none") {
 			await execAsyncRemote(input.serverId, loginCommand);
 		} else if (newRegistry.registryType === "cloud") {
@@ -64,7 +70,9 @@ export const removeRegistry = async (registryId: string) => {
 		}
 
 		if (!IS_CLOUD) {
-			await execAsync(`docker logout ${response.registryUrl}`);
+			// Escape registryUrl to prevent command injection
+			const escapedRegistryUrl = escapeShellArg(response.registryUrl);
+			await execAsync(`docker logout ${escapedRegistryUrl}`);
 		}
 
 		return response;
@@ -91,7 +99,12 @@ export const updateRegistry = async (
 			.returning()
 			.then((res) => res[0]);
 
-		const loginCommand = `echo ${response?.password} | docker login ${response?.registryUrl} --username ${response?.username} --password-stdin`;
+		// Escape all user inputs to prevent command injection
+		const escapedPassword = escapeShellArg(response?.password || "");
+		const escapedRegistryUrl = escapeShellArg(response?.registryUrl || "");
+		const escapedUsername = escapeShellArg(response?.username || "");
+		// Use printf instead of echo to prevent password interpretation, redirect to /dev/null to avoid logging credentials
+		const loginCommand = `printf '%s' ${escapedPassword} | docker login ${escapedRegistryUrl} --username ${escapedUsername} --password-stdin > /dev/null 2>&1`;
 
 		if (
 			IS_CLOUD &&
