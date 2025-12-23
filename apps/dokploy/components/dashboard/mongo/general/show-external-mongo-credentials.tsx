@@ -1,5 +1,4 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -20,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/utils/api";
 import { zodResolver } from "@hookform/resolvers/zod";
+import copy from "copy-to-clipboard";
+import { Clipboard } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -79,21 +80,27 @@ export const ShowExternalMongoCredentials = ({ mongoId }: Props) => {
 	};
 
 	useEffect(() => {
-		const buildConnectionUrl = () => {
+		const buildMaskedConnectionUrl = () => {
 			const port = form.watch("externalPort") || data?.externalPort;
 
-			return `mongodb://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}`;
+			return `mongodb://${data?.databaseUser}:****@${getIp}:${port}`;
 		};
 
-		setConnectionUrl(buildConnectionUrl());
+		setConnectionUrl(buildMaskedConnectionUrl());
 	}, [
 		data?.appName,
 		data?.externalPort,
-		data?.databasePassword,
 		form,
 		data?.databaseUser,
 		getIp,
 	]);
+
+	const copyConnectionUrl = () => {
+		const port = form.watch("externalPort") || data?.externalPort;
+		const fullUrl = `mongodb://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}`;
+		copy(fullUrl);
+		toast.success("Connection URL copied to clipboard");
+	};
 
 	return (
 		<>
@@ -154,7 +161,16 @@ export const ShowExternalMongoCredentials = ({ mongoId }: Props) => {
 									<div className="grid w-full gap-8">
 										<div className="flex flex-col gap-3">
 											<Label>External Host</Label>
-											<ToggleVisibilityInput value={connectionUrl} disabled />
+											<div className="flex w-full items-center space-x-2">
+												<Input value={connectionUrl} disabled />
+												<Button
+													type="button"
+													variant={"secondary"}
+													onClick={copyConnectionUrl}
+												>
+													<Clipboard className="size-4 text-muted-foreground" />
+												</Button>
+											</div>
 										</div>
 									</div>
 								)}

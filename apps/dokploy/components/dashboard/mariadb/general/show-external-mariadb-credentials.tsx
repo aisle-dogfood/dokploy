@@ -1,5 +1,4 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -20,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/utils/api";
 import { zodResolver } from "@hookform/resolvers/zod";
+import copy from "copy-to-clipboard";
+import { Clipboard } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -79,22 +80,28 @@ export const ShowExternalMariadbCredentials = ({ mariadbId }: Props) => {
 	};
 
 	useEffect(() => {
-		const buildConnectionUrl = () => {
+		const buildMaskedConnectionUrl = () => {
 			const port = form.watch("externalPort") || data?.externalPort;
 
-			return `mariadb://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
+			return `mariadb://${data?.databaseUser}:****@${getIp}:${port}/${data?.databaseName}`;
 		};
 
-		setConnectionUrl(buildConnectionUrl());
+		setConnectionUrl(buildMaskedConnectionUrl());
 	}, [
 		data?.appName,
 		data?.externalPort,
-		data?.databasePassword,
 		form,
 		data?.databaseName,
 		data?.databaseUser,
 		getIp,
 	]);
+
+	const copyConnectionUrl = () => {
+		const port = form.watch("externalPort") || data?.externalPort;
+		const fullUrl = `mariadb://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
+		copy(fullUrl);
+		toast.success("Connection URL copied to clipboard");
+	};
 	return (
 		<>
 			<div className="flex w-full flex-col gap-5 ">
@@ -155,7 +162,16 @@ export const ShowExternalMariadbCredentials = ({ mariadbId }: Props) => {
 										<div className="flex flex-col gap-3">
 											{/* jdbc:mariadb://5.161.59.207:3306/pixel-calculate?user=mariadb&password=HdVXfq6hM7W7F1 */}
 											<Label>External Host</Label>
-											<ToggleVisibilityInput value={connectionUrl} disabled />
+											<div className="flex w-full items-center space-x-2">
+												<Input value={connectionUrl} disabled />
+												<Button
+													type="button"
+													variant={"secondary"}
+													onClick={copyConnectionUrl}
+												>
+													<Clipboard className="size-4 text-muted-foreground" />
+												</Button>
+											</div>
 										</div>
 									</div>
 								)}
