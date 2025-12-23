@@ -409,7 +409,8 @@ export default async function handler(
 						);
 					} catch (error) {
 						console.error(
-							`Error validating PR author permissions for ${app.name}:`,
+							"Error validating PR author permissions for app:",
+							app.name,
 							error,
 						);
 						blockedApps.push(app.name);
