@@ -34,7 +34,7 @@ export const server = pgTable("server", {
 	description: text("description"),
 	ipAddress: text("ipAddress").notNull(),
 	port: integer("port").notNull(),
-	username: text("username").notNull().default("root"),
+	username: text("username").notNull(),
 	appName: text("appName")
 		.notNull()
 		.$defaultFn(() => generateAppName("server")),
@@ -121,6 +121,13 @@ const createSchema = createInsertSchema(server, {
 	serverId: z.string().min(1),
 	name: z.string().min(1),
 	description: z.string().optional(),
+	username: z
+		.string()
+		.min(1, "Username is required")
+		.refine((val) => val !== "root", {
+			message:
+				"Using 'root' user is not allowed for security reasons. Please use a non-root user with sudo privileges.",
+		}),
 });
 
 export const apiCreateServer = createSchema

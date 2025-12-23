@@ -48,7 +48,13 @@ const Schema = z.object({
 		message: "IP Address is required",
 	}),
 	port: z.number().optional(),
-	username: z.string().optional(),
+	username: z
+		.string()
+		.min(1, { message: "Username is required" })
+		.refine((val) => val !== "root", {
+			message:
+				"Using 'root' user is not allowed for security reasons. Please use a non-root user with sudo privileges.",
+		}),
 	sshKeyId: z.string().min(1, {
 		message: "SSH Key is required",
 	}),
@@ -87,7 +93,7 @@ export const HandleServers = ({ serverId }: Props) => {
 			name: "",
 			ipAddress: "",
 			port: 22,
-			username: "root",
+			username: "",
 			sshKeyId: "",
 		},
 		resolver: zodResolver(Schema),
@@ -99,7 +105,7 @@ export const HandleServers = ({ serverId }: Props) => {
 			name: data?.name || "",
 			ipAddress: data?.ipAddress || "",
 			port: data?.port || 22,
-			username: data?.username || "root",
+			username: data?.username || "",
 			sshKeyId: data?.sshKeyId || "",
 		});
 	}, [form, form.reset, form.formState.isSubmitSuccessful, data]);
@@ -351,7 +357,10 @@ export const HandleServers = ({ serverId }: Props) => {
 								<FormItem>
 									<FormLabel>{t("settings.terminal.username")}</FormLabel>
 									<FormControl>
-										<Input placeholder="root" {...field} />
+										<Input
+											placeholder="non-root user (e.g., dokploy, admin)"
+											{...field}
+										/>
 									</FormControl>
 
 									<FormMessage />
