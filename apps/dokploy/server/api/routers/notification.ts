@@ -33,6 +33,7 @@ import {
 	createGotifyNotification,
 	createSlackNotification,
 	createTelegramNotification,
+	findAllNotificationsWithMasking,
 	findNotificationById,
 	removeNotificationById,
 	sendDiscordNotification,
@@ -304,7 +305,10 @@ export const notificationRouter = createTRPCRouter({
 	one: protectedProcedure
 		.input(apiFindOneNotification)
 		.query(async ({ input, ctx }) => {
-			const notification = await findNotificationById(input.notificationId);
+			const notification = await findNotificationById(
+				input.notificationId,
+				true, // Mask sensitive data
+			);
 			if (notification.organizationId !== ctx.session.activeOrganizationId) {
 				throw new TRPCError({
 					code: "UNAUTHORIZED",
@@ -314,17 +318,15 @@ export const notificationRouter = createTRPCRouter({
 			return notification;
 		}),
 	all: adminProcedure.query(async ({ ctx }) => {
-		return await db.query.notifications.findMany({
-			with: {
-				slack: true,
-				telegram: true,
-				discord: true,
-				email: true,
-				gotify: true,
-			},
-			orderBy: desc(notifications.createdAt),
-			where: eq(notifications.organizationId, ctx.session.activeOrganizationId),
-		});
+		const allNotifications = await findAllNotificationsWithMasking(
+			ctx.session.activeOrganizationId,
+			true, // Mask sensitive data
+		);
+		// Sort by createdAt descending
+		return allNotifications.sort(
+			(a, b) =>
+				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+		);
 	}),
 	receiveNotification: publicProcedure
 		.input(

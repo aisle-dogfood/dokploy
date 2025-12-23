@@ -17,10 +17,48 @@ import {
 	slack,
 	telegram,
 } from "@dokploy/server/db/schema";
+import { decrypt, encrypt, maskToken } from "@dokploy/server/utils/encryption";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 
 export type Notification = typeof notifications.$inferSelect;
+
+/**
+ * Masks sensitive tokens in notification data before returning to client
+ */
+function maskNotificationTokens(notification: any): any {
+	if (!notification) {
+		return notification;
+	}
+
+	const masked = { ...notification };
+
+	// Mask Gotify appToken
+	if (masked.gotify?.appToken) {
+		masked.gotify = {
+			...masked.gotify,
+			appToken: maskToken(decrypt(masked.gotify.appToken)),
+		};
+	}
+
+	// Mask Telegram botToken
+	if (masked.telegram?.botToken) {
+		masked.telegram = {
+			...masked.telegram,
+			botToken: maskToken(masked.telegram.botToken),
+		};
+	}
+
+	// Mask Email password
+	if (masked.email?.password) {
+		masked.email = {
+			...masked.email,
+			password: maskToken(masked.email.password),
+		};
+	}
+
+	return masked;
+}
 
 export const createSlackNotification = async (
 	input: typeof apiCreateSlack._type,
@@ -397,11 +435,14 @@ export const createGotifyNotification = async (
 	organizationId: string,
 ) => {
 	await db.transaction(async (tx) => {
+		// Encrypt the appToken before storing
+		const encryptedAppToken = encrypt(input.appToken);
+		
 		const newGotify = await tx
 			.insert(gotify)
 			.values({
 				serverUrl: input.serverUrl,
-				appToken: input.appToken,
+				appToken: encryptedAppToken,
 				priority: input.priority,
 				decoration: input.decoration,
 			})
@@ -468,21 +509,37 @@ export const updateGotifyNotification = async (
 			});
 		}
 
+		// Encrypt the appToken before storing if provided
+		const updateData: {
+			serverUrl?: string;
+			appToken?: string;
+			priority?: number;
+			decoration?: boolean;
+		} = {
+			serverUrl: input.serverUrl,
+			priority: input.priority,
+			decoration: input.decoration,
+		};
+
+		// Only update appToken if it's provided and not a masked value
+		// Masked tokens contain asterisks (e.g., "abcd****wxyz")
+		if (input.appToken && !input.appToken.includes("*")) {
+			updateData.appToken = encrypt(input.appToken);
+		}
+
 		await tx
 			.update(gotify)
-			.set({
-				serverUrl: input.serverUrl,
-				appToken: input.appToken,
-				priority: input.priority,
-				decoration: input.decoration,
-			})
+			.set(updateData)
 			.where(eq(gotify.gotifyId, input.gotifyId));
 
 		return newDestination;
 	});
 };
 
-export const findNotificationById = async (notificationId: string) => {
+export const findNotificationById = async (
+	notificationId: string,
+	maskSensitiveData = false,
+) => {
 	const notification = await db.query.notifications.findFirst({
 		where: eq(notifications.notificationId, notificationId),
 		with: {
@@ -499,6 +556,12 @@ export const findNotificationById = async (notificationId: string) => {
 			message: "Notification not found",
 		});
 	}
+
+	// Mask sensitive data for API responses
+	if (maskSensitiveData) {
+		return maskNotificationTokens(notification);
+	}
+
 	return notification;
 };
 
@@ -524,4 +587,31 @@ export const updateNotificationById = async (
 		.returning();
 
 	return result[0];
+};
+
+/**
+ * Find all notifications with optional masking of sensitive data
+ */
+export const findAllNotificationsWithMasking = async (
+	organizationId: string,
+	maskSensitiveData = true,
+) => {
+	const allNotifications = await db.query.notifications.findMany({
+		where: eq(notifications.organizationId, organizationId),
+		with: {
+			slack: true,
+			telegram: true,
+			discord: true,
+			email: true,
+			gotify: true,
+		},
+	});
+
+	if (maskSensitiveData) {
+		return allNotifications.map((notification) =>
+			maskNotificationTokens(notification),
+		);
+	}
+
+	return allNotifications;
 };
