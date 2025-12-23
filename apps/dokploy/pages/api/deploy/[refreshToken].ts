@@ -58,9 +58,9 @@ export default async function handler(
 				return;
 			}
 		} else if (sourceType === "github") {
-			const normalizedCommits = req.body?.commits?.flatMap(
-				(commit: any) => commit.modified,
-			);
+			const normalizedCommits = Array.isArray(req.body?.commits)
+				? req.body.commits.flatMap((commit: any) => commit?.modified || [])
+				: [];
 
 			const shouldDeployPaths = shouldDeploy(
 				application.watchPaths,
@@ -89,17 +89,17 @@ export default async function handler(
 			let normalizedCommits: string[] = [];
 
 			if (provider === "github") {
-				normalizedCommits = req.body?.commits?.flatMap(
-					(commit: any) => commit.modified,
-				);
+				normalizedCommits = Array.isArray(req.body?.commits)
+					? req.body.commits.flatMap((commit: any) => commit?.modified || [])
+					: [];
 			} else if (provider === "gitlab") {
-				normalizedCommits = req.body?.commits?.flatMap(
-					(commit: any) => commit.modified,
-				);
+				normalizedCommits = Array.isArray(req.body?.commits)
+					? req.body.commits.flatMap((commit: any) => commit?.modified || [])
+					: [];
 			} else if (provider === "gitea") {
-				normalizedCommits = req.body?.commits?.flatMap(
-					(commit: any) => commit.modified,
-				);
+				normalizedCommits = Array.isArray(req.body?.commits)
+					? req.body.commits.flatMap((commit: any) => commit?.modified || [])
+					: [];
 			}
 
 			const shouldDeployPaths = shouldDeploy(
@@ -114,9 +114,9 @@ export default async function handler(
 		} else if (sourceType === "gitlab") {
 			const branchName = extractBranchName(req.headers, req.body);
 
-			const normalizedCommits = req.body?.commits?.flatMap(
-				(commit: any) => commit.modified,
-			);
+			const normalizedCommits = Array.isArray(req.body?.commits)
+				? req.body.commits.flatMap((commit: any) => commit?.modified || [])
+				: [];
 
 			const shouldDeployPaths = shouldDeploy(
 				application.watchPaths,
@@ -158,9 +158,9 @@ export default async function handler(
 		} else if (sourceType === "gitea") {
 			const branchName = extractBranchName(req.headers, req.body);
 
-			const normalizedCommits = req.body?.commits?.flatMap(
-				(commit: any) => commit.modified,
-			);
+			const normalizedCommits = Array.isArray(req.body?.commits)
+				? req.body.commits.flatMap((commit: any) => commit?.modified || [])
+				: [];
 
 			const shouldDeployPaths = shouldDeploy(
 				application.watchPaths,
@@ -253,22 +253,22 @@ export const extractCommitMessage = (headers: any, body: any) => {
 
 	// GitLab
 	if (headers["x-gitlab-event"]) {
-		return body.commits && body.commits.length > 0
-			? body.commits[0].message
+		return Array.isArray(body.commits) && body.commits.length > 0
+			? body.commits[0]?.message || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
-			? body.push.changes[0].new.target.message
+		return Array.isArray(body.push?.changes) && body.push.changes.length > 0
+			? body.push.changes[0]?.new?.target?.message || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
 	// Gitea
 	if (headers["x-gitea-event"]) {
-		return body.commits && body.commits.length > 0
-			? body.commits[0].message
+		return Array.isArray(body.commits) && body.commits.length > 0
+			? body.commits[0]?.message || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
@@ -291,16 +291,16 @@ export const extractHash = (headers: any, body: any) => {
 	if (headers["x-gitlab-event"]) {
 		return (
 			body.checkout_sha ||
-			(body.commits && body.commits.length > 0
-				? body.commits[0].id
+			(Array.isArray(body.commits) && body.commits.length > 0
+				? body.commits[0]?.id || "NEW COMMIT"
 				: "NEW COMMIT")
 		);
 	}
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
-			? body.push.changes[0].new.target.hash
+		return Array.isArray(body.push?.changes) && body.push.changes.length > 0
+			? body.push.changes[0]?.new?.target?.hash || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
@@ -322,7 +322,9 @@ export const extractBranchName = (headers: any, body: any) => {
 	}
 
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body?.push?.changes[0]?.new?.name;
+		return Array.isArray(body?.push?.changes) && body.push.changes.length > 0
+			? body.push.changes[0]?.new?.name
+			: null;
 	}
 
 	return null;
