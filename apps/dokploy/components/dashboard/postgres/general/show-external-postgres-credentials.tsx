@@ -1,5 +1,5 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
+import { SecureUrlInput } from "@/components/shared/secure-url-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -52,6 +52,7 @@ export const ShowExternalPostgresCredentials = ({ postgresId }: Props) => {
 		api.postgres.saveExternalPort.useMutation();
 	const getIp = data?.server?.ipAddress || ip;
 	const [connectionUrl, setConnectionUrl] = useState("");
+	const [maskedConnectionUrl, setMaskedConnectionUrl] = useState("");
 
 	const form = useForm<DockerProvider>({
 		defaultValues: {},
@@ -87,7 +88,14 @@ export const ShowExternalPostgresCredentials = ({ postgresId }: Props) => {
 			return `postgresql://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
 		};
 
+		const buildMaskedConnectionUrl = () => {
+			const port = form.watch("externalPort") || data?.externalPort;
+
+			return `postgresql://${data?.databaseUser}:***REDACTED***@${getIp}:${port}/${data?.databaseName}`;
+		};
+
 		setConnectionUrl(buildConnectionUrl());
+		setMaskedConnectionUrl(buildMaskedConnectionUrl());
 	}, [
 		data?.appName,
 		data?.externalPort,
@@ -95,6 +103,7 @@ export const ShowExternalPostgresCredentials = ({ postgresId }: Props) => {
 		form,
 		data?.databaseName,
 		getIp,
+		data?.databaseUser,
 	]);
 
 	return (
@@ -156,7 +165,11 @@ export const ShowExternalPostgresCredentials = ({ postgresId }: Props) => {
 									<div className="grid w-full gap-8">
 										<div className="flex flex-col gap-3">
 											<Label>External Host</Label>
-											<ToggleVisibilityInput value={connectionUrl} disabled />
+											<SecureUrlInput 
+												maskedValue={maskedConnectionUrl} 
+												fullValue={connectionUrl} 
+												disabled 
+											/>
 										</div>
 									</div>
 								)}

@@ -1,5 +1,5 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
+import { SecureUrlInput } from "@/components/shared/secure-url-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -50,6 +50,7 @@ export const ShowExternalMariadbCredentials = ({ mariadbId }: Props) => {
 	const { data, refetch } = api.mariadb.one.useQuery({ mariadbId });
 	const { mutateAsync, isLoading } = api.mariadb.saveExternalPort.useMutation();
 	const [connectionUrl, setConnectionUrl] = useState("");
+	const [maskedConnectionUrl, setMaskedConnectionUrl] = useState("");
 	const getIp = data?.server?.ipAddress || ip;
 	const form = useForm<DockerProvider>({
 		defaultValues: {},
@@ -85,7 +86,14 @@ export const ShowExternalMariadbCredentials = ({ mariadbId }: Props) => {
 			return `mariadb://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
 		};
 
+		const buildMaskedConnectionUrl = () => {
+			const port = form.watch("externalPort") || data?.externalPort;
+
+			return `mariadb://${data?.databaseUser}:***REDACTED***@${getIp}:${port}/${data?.databaseName}`;
+		};
+
 		setConnectionUrl(buildConnectionUrl());
+		setMaskedConnectionUrl(buildMaskedConnectionUrl());
 	}, [
 		data?.appName,
 		data?.externalPort,
@@ -155,7 +163,11 @@ export const ShowExternalMariadbCredentials = ({ mariadbId }: Props) => {
 										<div className="flex flex-col gap-3">
 											{/* jdbc:mariadb://5.161.59.207:3306/pixel-calculate?user=mariadb&password=HdVXfq6hM7W7F1 */}
 											<Label>External Host</Label>
-											<ToggleVisibilityInput value={connectionUrl} disabled />
+											<SecureUrlInput 
+												maskedValue={maskedConnectionUrl} 
+												fullValue={connectionUrl} 
+												disabled 
+											/>
 										</div>
 									</div>
 								)}

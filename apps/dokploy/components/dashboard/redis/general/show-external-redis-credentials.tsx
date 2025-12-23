@@ -1,5 +1,5 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
+import { SecureUrlInput } from "@/components/shared/secure-url-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -50,6 +50,7 @@ export const ShowExternalRedisCredentials = ({ redisId }: Props) => {
 	const { data, refetch } = api.redis.one.useQuery({ redisId });
 	const { mutateAsync, isLoading } = api.redis.saveExternalPort.useMutation();
 	const [connectionUrl, setConnectionUrl] = useState("");
+	const [maskedConnectionUrl, setMaskedConnectionUrl] = useState("");
 	const getIp = data?.server?.ipAddress || ip;
 
 	const form = useForm<DockerProvider>({
@@ -87,7 +88,14 @@ export const ShowExternalRedisCredentials = ({ redisId }: Props) => {
 			return `redis://default:${data?.databasePassword}@${getIp}:${port}`;
 		};
 
+		const buildMaskedConnectionUrl = () => {
+			const port = form.watch("externalPort") || data?.externalPort;
+
+			return `redis://default:***REDACTED***@${getIp}:${port}`;
+		};
+
 		setConnectionUrl(buildConnectionUrl());
+		setMaskedConnectionUrl(buildMaskedConnectionUrl());
 	}, [data?.appName, data?.externalPort, data?.databasePassword, form, getIp]);
 	return (
 		<>
@@ -148,7 +156,11 @@ export const ShowExternalRedisCredentials = ({ redisId }: Props) => {
 									<div className="grid w-full gap-8">
 										<div className="flex flex-col gap-3">
 											<Label>External Host</Label>
-											<ToggleVisibilityInput value={connectionUrl} disabled />
+											<SecureUrlInput 
+												maskedValue={maskedConnectionUrl} 
+												fullValue={connectionUrl} 
+												disabled 
+											/>
 										</div>
 									</div>
 								)}

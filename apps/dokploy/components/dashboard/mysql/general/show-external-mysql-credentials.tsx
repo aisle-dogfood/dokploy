@@ -1,5 +1,5 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
+import { SecureUrlInput } from "@/components/shared/secure-url-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -50,6 +50,7 @@ export const ShowExternalMysqlCredentials = ({ mysqlId }: Props) => {
 	const { data, refetch } = api.mysql.one.useQuery({ mysqlId });
 	const { mutateAsync, isLoading } = api.mysql.saveExternalPort.useMutation();
 	const [connectionUrl, setConnectionUrl] = useState("");
+	const [maskedConnectionUrl, setMaskedConnectionUrl] = useState("");
 	const getIp = data?.server?.ipAddress || ip;
 	const form = useForm<DockerProvider>({
 		defaultValues: {},
@@ -85,7 +86,14 @@ export const ShowExternalMysqlCredentials = ({ mysqlId }: Props) => {
 			return `mysql://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
 		};
 
+		const buildMaskedConnectionUrl = () => {
+			const port = form.watch("externalPort") || data?.externalPort;
+
+			return `mysql://${data?.databaseUser}:***REDACTED***@${getIp}:${port}/${data?.databaseName}`;
+		};
+
 		setConnectionUrl(buildConnectionUrl());
+		setMaskedConnectionUrl(buildMaskedConnectionUrl());
 	}, [
 		data?.appName,
 		data?.externalPort,
@@ -154,7 +162,11 @@ export const ShowExternalMysqlCredentials = ({ mysqlId }: Props) => {
 									<div className="grid w-full gap-8">
 										<div className="flex flex-col gap-3">
 											<Label>External Host</Label>
-											<ToggleVisibilityInput disabled value={connectionUrl} />
+											<SecureUrlInput 
+												maskedValue={maskedConnectionUrl} 
+												fullValue={connectionUrl} 
+												disabled 
+											/>
 										</div>
 									</div>
 								)}
