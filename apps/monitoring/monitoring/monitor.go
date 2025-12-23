@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
@@ -16,7 +18,7 @@ import (
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
-	"github.com/shirou/gopsutil/v3/net"
+	psutilnet "github.com/shirou/gopsutil/v3/net"
 
 	"github.com/mauriciogm/dokploy/apps/monitoring/config"
 	"github.com/mauriciogm/dokploy/apps/monitoring/database"
@@ -120,7 +122,7 @@ func GetServerMetrics() database.ServerMetric {
 	c, _ := cpu.Percent(0, false)
 	cpuInfo, _ := cpu.Info()
 	diskInfo, _ := disk.Usage("/")
-	netInfo, _ := net.IOCounters(false)
+	netInfo, _ := psutilnet.IOCounters(false)
 	hostInfo, _ := host.Info()
 	distro := getRealOS()
 
@@ -233,10 +235,97 @@ func CheckThresholds(metrics database.ServerMetric) error {
 	return nil
 }
 
-func sendAlert(callbackURL string, payload AlertPayload) error {
+// isPrivateIP checks if an IP address is in a private, loopback, or link-local range
+func isPrivateIP(ip net.IP) bool {
+	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+
+	// Check private IP ranges
+	privateRanges := []string{
+		"10.0.0.0/8",     // RFC1918
+		"172.16.0.0/12",  // RFC1918
+		"192.168.0.0/16", // RFC1918
+		"169.254.0.0/16", // RFC3927 link-local
+		"127.0.0.0/8",    // Loopback
+		"::1/128",        // IPv6 loopback
+		"fe80::/10",      // IPv6 link-local
+		"fc00::/7",       // IPv6 unique local addresses
+	}
+
+	for _, cidr := range privateRanges {
+		_, network, _ := net.ParseCIDR(cidr)
+		if network != nil && network.Contains(ip) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// validateCallbackURL validates the callback URL to prevent SSRF attacks
+func validateCallbackURL(callbackURL string) error {
 	if callbackURL == "" {
 		return fmt.Errorf("callback URL is not set")
 	}
+
+	// Parse the URL
+	parsedURL, err := url.Parse(callbackURL)
+	if err != nil {
+		return fmt.Errorf("invalid callback URL: %v", err)
+	}
+
+	// Ensure the URL uses HTTP or HTTPS
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("callback URL must use http or https scheme")
+	}
+
+	// Extract hostname
+	hostname := parsedURL.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("callback URL must have a valid hostname")
+	}
+
+	// Resolve the hostname to IP addresses
+	ips, err := net.LookupIP(hostname)
+	if err != nil {
+		return fmt.Errorf("failed to resolve callback URL hostname: %v", err)
+	}
+
+	// Check if any resolved IP is private
+	for _, ip := range ips {
+		if isPrivateIP(ip) {
+			return fmt.Errorf("callback URL resolves to a private, loopback, or link-local IP address: %s", ip.String())
+		}
+	}
+
+	return nil
+}
+
+// createSecureHTTPClient creates an HTTP client with security constraints
+func createSecureHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 10 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Limit redirects to 3
+			if len(via) >= 3 {
+				return fmt.Errorf("too many redirects")
+			}
+			// Validate redirect URL to prevent SSRF via redirects
+			if err := validateCallbackURL(req.URL.String()); err != nil {
+				return fmt.Errorf("redirect URL validation failed: %v", err)
+			}
+			return nil
+		},
+	}
+}
+
+func sendAlert(callbackURL string, payload AlertPayload) error {
+	// Validate the callback URL to prevent SSRF
+	if err := validateCallbackURL(callbackURL); err != nil {
+		return fmt.Errorf("callback URL validation failed: %v", err)
+	}
+
 	wrappedPayload := map[string]interface{}{
 		"json": payload,
 	}
@@ -246,7 +335,9 @@ func sendAlert(callbackURL string, payload AlertPayload) error {
 		return fmt.Errorf("failed to marshal alert payload: %v", err)
 	}
 
-	resp, err := http.Post(callbackURL, "application/json", bytes.NewBuffer(jsonData))
+	// Use a secure HTTP client with timeouts and redirect limits
+	client := createSecureHTTPClient()
+	resp, err := client.Post(callbackURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to send POST request: %v", err)
 	}
