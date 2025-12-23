@@ -9,7 +9,7 @@ export const recreateDirectory = async (pathFolder: string): Promise<void> => {
 		await removeDirectoryIfExistsContent(pathFolder);
 		await fsPromises.mkdir(pathFolder, { recursive: true });
 	} catch (error) {
-		console.error(`Error recreating directory '${pathFolder}':`, error);
+		console.error("Error recreating directory:", pathFolder, error);
 	}
 };
 
@@ -23,7 +23,7 @@ export const recreateDirectoryRemote = async (
 			`rm -rf ${pathFolder}; mkdir -p ${pathFolder}`,
 		);
 	} catch (error) {
-		console.error(`Error recreating directory '${pathFolder}':`, error);
+		console.error("Error recreating directory:", pathFolder, error);
 	}
 };
 
@@ -39,7 +39,7 @@ export const removeFileOrDirectory = async (path: string) => {
 	try {
 		await execAsync(`rm -rf ${path}`);
 	} catch (error) {
-		console.error(`Error removing ${path}: ${error}`);
+		console.error("Error removing:", path, error);
 		throw error;
 	}
 };
@@ -58,7 +58,7 @@ export const removeDirectoryCode = async (
 			await execAsync(command);
 		}
 	} catch (error) {
-		console.error(`Error removing ${directoryPath}: ${error}`);
+		console.error("Error removing:", directoryPath, error);
 		throw error;
 	}
 };
@@ -77,7 +77,7 @@ export const removeComposeDirectory = async (
 			await execAsync(command);
 		}
 	} catch (error) {
-		console.error(`Error removing ${directoryPath}: ${error}`);
+		console.error("Error removing:", directoryPath, error);
 		throw error;
 	}
 };
@@ -96,7 +96,7 @@ export const removeMonitoringDirectory = async (
 			await execAsync(command);
 		}
 	} catch (error) {
-		console.error(`Error removing ${directoryPath}: ${error}`);
+		console.error("Error removing:", directoryPath, error);
 		throw error;
 	}
 };
