@@ -22,6 +22,7 @@ METRICS_CONFIG='{
     "urlCallback": "http://localhost:3000/api/trpc/notification.receiveNotification",
     "retentionDays": 7,
     "cronJob": "0 0 * * *",
+    "allowedOrigins": ["http://localhost:3000", "https://your-dokploy-instance.com"],
     "thresholds": {
       "cpu": 0,
       "memory": 0
@@ -36,6 +37,25 @@ METRICS_CONFIG='{
   }
 }'
 ```
+
+### Configuration Options
+
+#### Server Configuration
+
+- `refreshRate`: Interval in seconds between metric collections
+- `port`: Port number for the monitoring service
+- `type`: Service type ("Remote" or "Dokploy")
+- `token`: Authentication token for API requests (required)
+- `urlCallback`: URL for sending notifications (required)
+- `retentionDays`: Number of days to retain metrics data
+- `cronJob`: Cron expression for cleanup schedule
+- `allowedOrigins`: (Optional) Array of allowed CORS origins. If not specified, CORS is disabled for maximum security. Only configure this if you need browser-based access to the monitoring endpoints.
+- `thresholds`: Alert thresholds for CPU and memory usage
+
+**Security Note**: For production deployments, it's recommended to either:
+1. Omit `allowedOrigins` to disable CORS entirely (most secure)
+2. Specify only trusted origins (e.g., your Dokploy UI domain)
+3. Use server-side proxying instead of direct browser access
 
 ## Installation
 
