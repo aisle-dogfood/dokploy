@@ -4,7 +4,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
 import { admin, apiKey, organization, twoFactor } from "better-auth/plugins";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { IS_CLOUD } from "../constants";
 import { db } from "../db";
 import * as schema from "../db/schema";
@@ -262,6 +262,151 @@ export const validateRequest = async (request: IncomingMessage) => {
 					session: null,
 					user: null,
 				};
+			}
+
+			// Check if API key is enabled
+			if (apiKeyRecord.enabled === false) {
+				console.warn(
+					`API key ${apiKeyRecord.id} is disabled but attempted to be used`,
+				);
+				return {
+					session: null,
+					user: null,
+				};
+			}
+
+			// Check if API key has expired
+			if (apiKeyRecord.expiresAt && apiKeyRecord.expiresAt < new Date()) {
+				console.warn(
+					`API key ${apiKeyRecord.id} has expired at ${apiKeyRecord.expiresAt}`,
+				);
+				return {
+					session: null,
+					user: null,
+				};
+			}
+
+			// Handle rate limiting if enabled
+			if (apiKeyRecord.rateLimitEnabled) {
+				const now = new Date();
+				const currentRemaining = apiKeyRecord.remaining ?? 0;
+				const maxRequests = apiKeyRecord.rateLimitMax ?? 0;
+				const timeWindow = apiKeyRecord.rateLimitTimeWindow ?? 0; // in seconds
+				const refillInterval = apiKeyRecord.refillInterval ?? 0; // in seconds
+				const refillAmount = apiKeyRecord.refillAmount ?? 0;
+				const lastRefillAt = apiKeyRecord.lastRefillAt ?? apiKeyRecord.createdAt;
+
+				// Calculate if we need to refill based on refillInterval
+				let newRemaining = currentRemaining;
+				let newLastRefillAt = lastRefillAt;
+
+				if (refillInterval > 0 && refillAmount > 0) {
+					const timeSinceLastRefill = Math.floor(
+						(now.getTime() - lastRefillAt.getTime()) / 1000,
+					);
+					const refillsNeeded = Math.floor(timeSinceLastRefill / refillInterval);
+
+					if (refillsNeeded > 0) {
+						// Refill the tokens
+						newRemaining = Math.min(
+							currentRemaining + refillsNeeded * refillAmount,
+							maxRequests,
+						);
+						newLastRefillAt = new Date(
+							lastRefillAt.getTime() + refillsNeeded * refillInterval * 1000,
+						);
+					}
+				}
+
+				// Check if request can be made
+				if (newRemaining <= 0) {
+					console.warn(
+						`API key ${apiKeyRecord.id} has exceeded rate limit (0 requests remaining)`,
+					);
+					return {
+						session: null,
+						user: null,
+					};
+				}
+
+				// Atomically update the counters in a transaction
+				try {
+					await db.transaction(async (tx) => {
+						// Re-check the remaining count to prevent race conditions
+						const currentKey = await tx.query.apikey.findFirst({
+							where: eq(schema.apikey.id, key.id),
+						});
+
+						if (!currentKey) {
+							throw new Error("API key not found in transaction");
+						}
+
+						let finalRemaining = currentKey.remaining ?? 0;
+						let finalLastRefillAt = currentKey.lastRefillAt ?? currentKey.createdAt;
+
+						// Recalculate refill in case it changed between queries
+						if (refillInterval > 0 && refillAmount > 0) {
+							const timeSinceLastRefill = Math.floor(
+								(now.getTime() - finalLastRefillAt.getTime()) / 1000,
+							);
+							const refillsNeeded = Math.floor(
+								timeSinceLastRefill / refillInterval,
+							);
+
+							if (refillsNeeded > 0) {
+								finalRemaining = Math.min(
+									finalRemaining + refillsNeeded * refillAmount,
+									maxRequests,
+								);
+								finalLastRefillAt = new Date(
+									finalLastRefillAt.getTime() +
+										refillsNeeded * refillInterval * 1000,
+								);
+							}
+						}
+
+						// Check again if we have remaining requests
+						if (finalRemaining <= 0) {
+							throw new Error("Rate limit exceeded");
+						}
+
+						// Update counters: decrement remaining, increment request count, update timestamps
+						await tx
+							.update(schema.apikey)
+							.set({
+								remaining: sql`${schema.apikey.remaining} - 1`,
+								requestCount: sql`${schema.apikey.requestCount} + 1`,
+								lastRequest: now,
+								lastRefillAt: finalLastRefillAt,
+								updatedAt: now,
+							})
+							.where(eq(schema.apikey.id, key.id));
+					});
+				} catch (txError) {
+					console.error("Error updating API key counters:", txError);
+					// If transaction fails due to rate limit, reject the request
+					if (
+						txError instanceof Error &&
+						txError.message === "Rate limit exceeded"
+					) {
+						return {
+							session: null,
+							user: null,
+						};
+					}
+					throw txError;
+				}
+			} else {
+				// Even if rate limiting is not enabled, track usage
+				const now = new Date();
+				await db
+					.update(schema.apikey)
+					.set({
+						requestCount: sql`${schema.apikey.requestCount} + 1`,
+						lastRequest: now,
+						updatedAt: now,
+					})
+					.where(eq(schema.apikey.id, key.id));
 			}
 
 			const organizationId = JSON.parse(
