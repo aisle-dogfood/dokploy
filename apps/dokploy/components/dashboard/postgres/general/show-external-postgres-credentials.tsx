@@ -1,5 +1,4 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -20,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/utils/api";
 import { zodResolver } from "@hookform/resolvers/zod";
+import copy from "copy-to-clipboard";
+import { Clipboard } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -81,21 +82,28 @@ export const ShowExternalPostgresCredentials = ({ postgresId }: Props) => {
 	};
 
 	useEffect(() => {
-		const buildConnectionUrl = () => {
+		const buildMaskedConnectionUrl = () => {
 			const port = form.watch("externalPort") || data?.externalPort;
 
-			return `postgresql://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
+			return `postgresql://${data?.databaseUser}:****@${getIp}:${port}/${data?.databaseName}`;
 		};
 
-		setConnectionUrl(buildConnectionUrl());
+		setConnectionUrl(buildMaskedConnectionUrl());
 	}, [
 		data?.appName,
 		data?.externalPort,
-		data?.databasePassword,
+		data?.databaseUser,
 		form,
 		data?.databaseName,
 		getIp,
 	]);
+
+	const copyConnectionUrl = () => {
+		const port = form.watch("externalPort") || data?.externalPort;
+		const fullUrl = `postgresql://${data?.databaseUser}:${data?.databasePassword}@${getIp}:${port}/${data?.databaseName}`;
+		copy(fullUrl);
+		toast.success("Connection URL copied to clipboard");
+	};
 
 	return (
 		<>
@@ -156,7 +164,16 @@ export const ShowExternalPostgresCredentials = ({ postgresId }: Props) => {
 									<div className="grid w-full gap-8">
 										<div className="flex flex-col gap-3">
 											<Label>External Host</Label>
-											<ToggleVisibilityInput value={connectionUrl} disabled />
+											<div className="flex w-full items-center space-x-2">
+												<Input value={connectionUrl} disabled />
+												<Button
+													type="button"
+													variant={"secondary"}
+													onClick={copyConnectionUrl}
+												>
+													<Clipboard className="size-4 text-muted-foreground" />
+												</Button>
+											</div>
 										</div>
 									</div>
 								)}

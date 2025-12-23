@@ -1,5 +1,4 @@
 import { AlertBlock } from "@/components/shared/alert-block";
-import { ToggleVisibilityInput } from "@/components/shared/toggle-visibility-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -20,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/utils/api";
 import { zodResolver } from "@hookform/resolvers/zod";
+import copy from "copy-to-clipboard";
+import { Clipboard } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -80,15 +81,21 @@ export const ShowExternalRedisCredentials = ({ redisId }: Props) => {
 	};
 
 	useEffect(() => {
-		const buildConnectionUrl = () => {
-			const _hostname = window.location.hostname;
+		const buildMaskedConnectionUrl = () => {
 			const port = form.watch("externalPort") || data?.externalPort;
 
-			return `redis://default:${data?.databasePassword}@${getIp}:${port}`;
+			return `redis://default:****@${getIp}:${port}`;
 		};
 
-		setConnectionUrl(buildConnectionUrl());
-	}, [data?.appName, data?.externalPort, data?.databasePassword, form, getIp]);
+		setConnectionUrl(buildMaskedConnectionUrl());
+	}, [data?.appName, data?.externalPort, form, getIp]);
+
+	const copyConnectionUrl = () => {
+		const port = form.watch("externalPort") || data?.externalPort;
+		const fullUrl = `redis://default:${data?.databasePassword}@${getIp}:${port}`;
+		copy(fullUrl);
+		toast.success("Connection URL copied to clipboard");
+	};
 	return (
 		<>
 			<div className="flex w-full flex-col gap-5 ">
@@ -148,7 +155,16 @@ export const ShowExternalRedisCredentials = ({ redisId }: Props) => {
 									<div className="grid w-full gap-8">
 										<div className="flex flex-col gap-3">
 											<Label>External Host</Label>
-											<ToggleVisibilityInput value={connectionUrl} disabled />
+											<div className="flex w-full items-center space-x-2">
+												<Input value={connectionUrl} disabled />
+												<Button
+													type="button"
+													variant={"secondary"}
+													onClick={copyConnectionUrl}
+												>
+													<Clipboard className="size-4 text-muted-foreground" />
+												</Button>
+											</div>
 										</div>
 									</div>
 								)}
