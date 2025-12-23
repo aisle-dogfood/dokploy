@@ -98,9 +98,23 @@ export default async function handler(
 		githubBody?.ref?.startsWith("refs/tags/")
 	) {
 		try {
-			const tagName = githubBody?.ref.replace("refs/tags/", "");
-			const repository = githubBody?.repository?.name;
-			const owner = githubBody?.repository?.owner?.name;
+			// Validate types
+			if (typeof githubBody?.ref !== "string") {
+				res.status(400).json({ message: "Invalid ref type" });
+				return;
+			}
+			if (typeof githubBody?.repository?.name !== "string") {
+				res.status(400).json({ message: "Invalid repository name type" });
+				return;
+			}
+			if (typeof githubBody?.repository?.owner?.name !== "string") {
+				res.status(400).json({ message: "Invalid owner name type" });
+				return;
+			}
+
+			const tagName = githubBody.ref.replace("refs/tags/", "");
+			const repository = githubBody.repository.name;
+			const owner = githubBody.repository.owner.name;
 			const deploymentTitle = `Tag created: ${tagName}`;
 			const deploymentHash = extractHash(req.headers, githubBody);
 
@@ -203,12 +217,26 @@ export default async function handler(
 
 	if (req.headers["x-github-event"] === "push") {
 		try {
-			const branchName = githubBody?.ref?.replace("refs/heads/", "");
-			const repository = githubBody?.repository?.name;
+			// Validate types
+			if (typeof githubBody?.ref !== "string") {
+				res.status(400).json({ message: "Invalid ref type" });
+				return;
+			}
+			if (typeof githubBody?.repository?.name !== "string") {
+				res.status(400).json({ message: "Invalid repository name type" });
+				return;
+			}
+			if (typeof githubBody?.repository?.owner?.name !== "string") {
+				res.status(400).json({ message: "Invalid owner name type" });
+				return;
+			}
+
+			const branchName = githubBody.ref.replace("refs/heads/", "");
+			const repository = githubBody.repository.name;
 
 			const deploymentTitle = extractCommitMessage(req.headers, req.body);
 			const deploymentHash = extractHash(req.headers, req.body);
-			const owner = githubBody?.repository?.owner?.name;
+			const owner = githubBody.repository.owner.name;
 			const normalizedCommits = githubBody?.commits?.flatMap(
 				(commit: any) => commit.modified,
 			);
@@ -321,6 +349,12 @@ export default async function handler(
 		const action = githubBody?.action;
 
 		if (action === "closed") {
+			// Validate prId type
+			if (typeof prId !== "number") {
+				res.status(400).json({ message: "Invalid pull request ID type" });
+				return;
+			}
+
 			const previewDeploymentResult =
 				await findPreviewDeploymentsByPullRequestId(prId);
 
@@ -345,22 +379,38 @@ export default async function handler(
 			action === "synchronize" ||
 			action === "reopened"
 		) {
-			const repository = githubBody?.repository?.name;
-			const deploymentHash = githubBody?.pull_request?.head?.sha;
-			const branch = githubBody?.pull_request?.base?.ref;
-			const owner = githubBody?.repository?.owner?.login;
-			const prAuthor = githubBody?.pull_request?.user?.login;
-
-			// Validate PR author information is present
-			if (!prAuthor) {
+			// Validate types
+			if (typeof githubBody?.repository?.name !== "string") {
+				res.status(400).json({ message: "Invalid repository name type" });
+				return;
+			}
+			if (typeof githubBody?.pull_request?.head?.sha !== "string") {
+				res.status(400).json({ message: "Invalid deployment hash type" });
+				return;
+			}
+			if (typeof githubBody?.pull_request?.base?.ref !== "string") {
+				res.status(400).json({ message: "Invalid branch type" });
+				return;
+			}
+			if (typeof githubBody?.repository?.owner?.login !== "string") {
+				res.status(400).json({ message: "Invalid owner type" });
+				return;
+			}
+			if (typeof githubBody?.pull_request?.user?.login !== "string") {
 				console.warn(
 					"⚠️ SECURITY: PR author information missing in webhook payload",
 				);
 				res.status(400).json({
-					message: "PR author information missing",
+					message: "PR author information missing or invalid type",
 				});
 				return;
 			}
+
+			const repository = githubBody.repository.name;
+			const deploymentHash = githubBody.pull_request.head.sha;
+			const branch = githubBody.pull_request.base.ref;
+			const owner = githubBody.repository.owner.login;
+			const prAuthor = githubBody.pull_request.user.login;
 
 			const apps = await db.query.applications.findMany({
 				where: and(
