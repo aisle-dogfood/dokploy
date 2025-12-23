@@ -5,6 +5,7 @@ import type {
 	slack,
 	telegram,
 } from "@dokploy/server/db/schema";
+import { decrypt } from "@dokploy/server/utils/encryption";
 import nodemailer from "nodemailer";
 
 export const sendEmailNotification = async (
@@ -102,11 +103,14 @@ export const sendGotifyNotification = async (
 	title: string,
 	message: string,
 ) => {
+	// Decrypt the appToken before using it
+	const decryptedAppToken = decrypt(connection.appToken);
+	
 	const response = await fetch(`${connection.serverUrl}/message`, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
-			"X-Gotify-Key": connection.appToken,
+			"X-Gotify-Key": decryptedAppToken,
 		},
 		body: JSON.stringify({
 			title: title,

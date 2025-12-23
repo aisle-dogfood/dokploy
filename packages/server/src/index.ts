@@ -137,3 +137,5 @@ export * from "./utils/schedules/index";
 export * from "./utils/volume-backups/index";
 
 export * from "./lib/logger";
+
+export * from "./utils/encrypt-existing-tokens";
