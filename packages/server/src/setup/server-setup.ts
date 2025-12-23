@@ -463,8 +463,20 @@ if ! [ -x "$(command -v docker)" ]; then
             dnf install docker -y >/dev/null 2>&1
             DOCKER_CONFIG=/usr/local/lib/docker
             mkdir -p $DOCKER_CONFIG/cli-plugins >/dev/null 2>&1
-            curl -sL https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o $DOCKER_CONFIG/cli-plugins/docker-compose >/dev/null 2>&1
-            chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose >/dev/null 2>&1
+            # Securely download docker-compose with error handling
+            COMPOSE_URL="https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)"
+            COMPOSE_PATH="$DOCKER_CONFIG/cli-plugins/docker-compose"
+            if curl -fsSL -o "$COMPOSE_PATH" "$COMPOSE_URL" >/dev/null 2>&1; then
+                # Verify download succeeded and file is not empty
+                if [ -s "$COMPOSE_PATH" ]; then
+                    chmod +x "$COMPOSE_PATH" >/dev/null 2>&1
+                else
+                    echo " - Warning: Downloaded docker-compose binary is empty"
+                    rm -f "$COMPOSE_PATH"
+                fi
+            else
+                echo " - Warning: Failed to download docker-compose"
+            fi
             systemctl start docker >/dev/null 2>&1
             systemctl enable docker >/dev/null 2>&1
             if ! [ -x "$(command -v docker)" ]; then
@@ -495,9 +507,39 @@ if ! [ -x "$(command -v docker)" ]; then
                     echo "Please install Docker manually."
                 exit 1
             fi
-            curl -s https://releases.rancher.com/install-docker/$DOCKER_VERSION.sh | sh 2>&1
+            # Securely download and execute Docker installation script
+            DOCKER_INSTALL_SCRIPT=$(mktemp)
+            echo " - Downloading Docker installer securely..."
+            if curl -fsSL -o "$DOCKER_INSTALL_SCRIPT" https://releases.rancher.com/install-docker/$DOCKER_VERSION.sh 2>&1; then
+                if [ -s "$DOCKER_INSTALL_SCRIPT" ]; then
+                    sh "$DOCKER_INSTALL_SCRIPT" 2>&1
+                    rm -f "$DOCKER_INSTALL_SCRIPT"
+                else
+                    echo " - Downloaded Rancher Docker installer is empty, trying fallback..."
+                    rm -f "$DOCKER_INSTALL_SCRIPT"
+                fi
+            else
+                echo " - Failed to download from Rancher, trying fallback installer..."
+                rm -f "$DOCKER_INSTALL_SCRIPT"
+            fi
+            
             if ! [ -x "$(command -v docker)" ]; then
-                curl -s https://get.docker.com | sh -s -- --version $DOCKER_VERSION 2>&1
+                # Fallback to get.docker.com
+                DOCKER_INSTALL_SCRIPT=$(mktemp)
+                echo " - Downloading Docker fallback installer securely..."
+                if curl -fsSL -o "$DOCKER_INSTALL_SCRIPT" https://get.docker.com 2>&1; then
+                    if [ -s "$DOCKER_INSTALL_SCRIPT" ]; then
+                        sh "$DOCKER_INSTALL_SCRIPT" --version $DOCKER_VERSION 2>&1
+                        rm -f "$DOCKER_INSTALL_SCRIPT"
+                    else
+                        echo " - Downloaded Docker installer is empty or invalid"
+                        rm -f "$DOCKER_INSTALL_SCRIPT"
+                    fi
+                else
+                    echo " - Failed to download Docker installer"
+                    rm -f "$DOCKER_INSTALL_SCRIPT"
+                fi
+                
                 if ! [ -x "$(command -v docker)" ]; then
                     echo " - Docker installation failed."
                     echo "   Maybe your OS is not supported?"
@@ -556,9 +598,34 @@ export const installRClone = () => `
     if command_exists rclone; then
 		echo "RClone already installed ✅"
 	else
-		curl https://rclone.org/install.sh | sudo bash
-		RCLONE_VERSION=$(rclone --version | head -n 1 | awk '{print $2}' | sed 's/^v//')
-		echo "RClone version $RCLONE_VERSION installed ✅"
+		echo "Installing RClone securely..."
+		# Download installer to temporary file instead of piping directly to bash
+		RCLONE_INSTALL_SCRIPT=$(mktemp)
+		if curl -fsSL -o "$RCLONE_INSTALL_SCRIPT" https://rclone.org/install.sh; then
+			# Verify the script was downloaded successfully and is not empty
+			if [ -s "$RCLONE_INSTALL_SCRIPT" ]; then
+				# Execute the downloaded script
+				sudo bash "$RCLONE_INSTALL_SCRIPT"
+				INSTALL_RESULT=$?
+				# Clean up the temporary file
+				rm -f "$RCLONE_INSTALL_SCRIPT"
+				if [ $INSTALL_RESULT -eq 0 ]; then
+					RCLONE_VERSION=$(rclone --version | head -n 1 | awk '{print $2}' | sed 's/^v//')
+					echo "RClone version $RCLONE_VERSION installed ✅"
+				else
+					echo "RClone installation failed"
+					exit 1
+				fi
+			else
+				echo "Downloaded RClone installer is empty or invalid"
+				rm -f "$RCLONE_INSTALL_SCRIPT"
+				exit 1
+			fi
+		else
+			echo "Failed to download RClone installer"
+			rm -f "$RCLONE_INSTALL_SCRIPT"
+			exit 1
+		fi
 	fi
 `;
 
