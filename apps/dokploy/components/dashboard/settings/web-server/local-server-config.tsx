@@ -23,14 +23,20 @@ import { z } from "zod";
 
 const Schema = z.object({
 	port: z.number().min(1, "Port must be higher than 0"),
-	username: z.string().min(1, "Username is required"),
+	username: z
+		.string()
+		.min(1, "Username is required")
+		.refine((val) => val !== "root", {
+			message:
+				"Using 'root' user is strongly discouraged for security reasons. Please use a non-privileged user instead.",
+		}),
 });
 
 type Schema = z.infer<typeof Schema>;
 
 const DEFAULT_LOCAL_SERVER_DATA: Schema = {
 	port: 22,
-	username: "root",
+	username: "dokploy",
 };
 
 /** Returns local server data for use with local server terminal */
@@ -126,7 +132,7 @@ const LocalServerConfig = ({ onSave }: Props) => {
 									<FormItem>
 										<FormLabel>{t("settings.terminal.username")}</FormLabel>
 										<FormControl>
-											<Input placeholder="root" {...field} />
+											<Input placeholder="dokploy" {...field} />
 										</FormControl>
 
 										<FormMessage />

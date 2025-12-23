@@ -86,6 +86,26 @@ export const setupTerminalWebSocketServer = (
 				return;
 			}
 
+			// Validate username to discourage root usage
+			if (username === "root") {
+				ws.send(
+					"⚠️  WARNING: Using 'root' user is strongly discouraged for security reasons.\n",
+				);
+				ws.send(
+					"⚠️  Please configure a non-privileged user in Connection Settings.\n",
+				);
+				ws.send("Connection refused for security policy.\n");
+				ws.close();
+				return;
+			}
+
+			// Validate port range
+			if (port < 1 || port > 65535) {
+				ws.send("Invalid port number. Must be between 1 and 65535.\n");
+				ws.close();
+				return;
+			}
+
 			try {
 				ws.send("Setting up private SSH key...\n");
 				const privateKey = await setupLocalServerSSHKey();
