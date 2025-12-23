@@ -38,7 +38,13 @@ const Schema = z.object({
 		message: "IP Address is required",
 	}),
 	port: z.number().optional(),
-	username: z.string().optional(),
+	username: z
+		.string()
+		.min(1, { message: "Username is required" })
+		.refine((val) => val !== "root", {
+			message:
+				"Using 'root' user is not allowed for security reasons. Please use a non-root user with sudo privileges.",
+		}),
 	sshKeyId: z.string().min(1, {
 		message: "SSH Key is required",
 	}),
@@ -66,7 +72,7 @@ export const CreateServer = ({ stepper }: Props) => {
 			name: "My First Server",
 			ipAddress: "",
 			port: 22,
-			username: "root",
+			username: "",
 			sshKeyId: cloudSSHKey?.sshKeyId || "",
 		},
 		resolver: zodResolver(Schema),
@@ -78,7 +84,7 @@ export const CreateServer = ({ stepper }: Props) => {
 			name: "My First Server",
 			ipAddress: "",
 			port: 22,
-			username: "root",
+			username: "",
 			sshKeyId: cloudSSHKey?.sshKeyId || "",
 		});
 	}, [form, form.reset, form.formState.isSubmitSuccessful, sshKeys]);
@@ -93,7 +99,7 @@ export const CreateServer = ({ stepper }: Props) => {
 			description: data.description || "",
 			ipAddress: data.ipAddress || "",
 			port: data.port || 22,
-			username: data.username || "root",
+			username: data.username || "",
 			sshKeyId: data.sshKeyId || "",
 		})
 			.then(async (_data) => {
@@ -256,7 +262,10 @@ export const CreateServer = ({ stepper }: Props) => {
 								<FormItem>
 									<FormLabel>Username</FormLabel>
 									<FormControl>
-										<Input placeholder="root" {...field} />
+										<Input
+											placeholder="non-root user (e.g., dokploy, admin)"
+											{...field}
+										/>
 									</FormControl>
 
 									<FormMessage />
