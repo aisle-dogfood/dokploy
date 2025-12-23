@@ -165,7 +165,8 @@ export const HandleDestinations = ({ destinationId }: Props) => {
 		const endpoint = form.getValues("endpoint");
 		const region = form.getValues("region");
 
-		const connectionString = `:s3,provider=${provider},access_key_id=${accessKey},secret_access_key=${secretKey},endpoint=${endpoint}${region ? `,region=${region}` : ""}:${bucket}`;
+		// Create a masked connection string for display purposes (never expose credentials in UI)
+		const maskedConnectionString = `:s3,provider=${provider},access_key_id=<YOUR_ACCESS_KEY_ID>,secret_access_key=<YOUR_SECRET_ACCESS_KEY>,endpoint=${endpoint}${region ? `,region=${region}` : ""}:${bucket}`;
 
 		await testConnection({
 			provider,
@@ -182,7 +183,7 @@ export const HandleDestinations = ({ destinationId }: Props) => {
 			})
 			.catch((e) => {
 				toast.error("Error connecting to provider", {
-					description: `${e.message}\n\nTry manually: rclone ls ${connectionString}`,
+					description: `${e.message}\n\nTry manually: rclone ls ${maskedConnectionString}`,
 				});
 			});
 	};
