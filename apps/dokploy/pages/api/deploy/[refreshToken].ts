@@ -253,22 +253,22 @@ export const extractCommitMessage = (headers: any, body: any) => {
 
 	// GitLab
 	if (headers["x-gitlab-event"]) {
-		return body.commits && body.commits.length > 0
-			? body.commits[0].message
+		return Array.isArray(body.commits) && body.commits.length > 0
+			? body.commits[0]?.message || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
-			? body.push.changes[0].new.target.message
+		return Array.isArray(body?.push?.changes) && body.push.changes.length > 0
+			? body.push.changes[0]?.new?.target?.message || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
 	// Gitea
 	if (headers["x-gitea-event"]) {
-		return body.commits && body.commits.length > 0
-			? body.commits[0].message
+		return Array.isArray(body.commits) && body.commits.length > 0
+			? body.commits[0]?.message || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
@@ -291,16 +291,16 @@ export const extractHash = (headers: any, body: any) => {
 	if (headers["x-gitlab-event"]) {
 		return (
 			body.checkout_sha ||
-			(body.commits && body.commits.length > 0
-				? body.commits[0].id
+			(Array.isArray(body.commits) && body.commits.length > 0
+				? body.commits[0]?.id || "NEW COMMIT"
 				: "NEW COMMIT")
 		);
 	}
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
-			? body.push.changes[0].new.target.hash
+		return Array.isArray(body?.push?.changes) && body.push.changes.length > 0
+			? body.push.changes[0]?.new?.target?.hash || "NEW COMMIT"
 			: "NEW COMMIT";
 	}
 
@@ -322,7 +322,9 @@ export const extractBranchName = (headers: any, body: any) => {
 	}
 
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body?.push?.changes[0]?.new?.name;
+		return Array.isArray(body?.push?.changes) && body.push.changes.length > 0
+			? body.push.changes[0]?.new?.name
+			: null;
 	}
 
 	return null;
@@ -354,10 +356,10 @@ export const extractCommitedPaths = async (
 	bitbucketAppPassword: string | null,
 	repository: string | null,
 ) => {
-	const changes = body.push?.changes || [];
+	const changes = Array.isArray(body?.push?.changes) ? body.push.changes : [];
 
 	const commitHashes = changes
-		.map((change: any) => change.new?.target?.hash)
+		.map((change: any) => change?.new?.target?.hash)
 		.filter(Boolean);
 	const commitedPaths: string[] = [];
 	for (const commit of commitHashes) {
