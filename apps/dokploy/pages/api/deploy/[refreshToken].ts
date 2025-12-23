@@ -376,7 +376,8 @@ export const extractCommitedPaths = async (
 			}
 		} catch (error) {
 			console.error(
-				`Error fetching Bitbucket diffstat for commit ${commit}:`,
+				"Error fetching Bitbucket diffstat for commit:",
+				commit,
 				error instanceof Error ? error.message : "Unknown error",
 			);
 
