@@ -95,10 +95,11 @@ export default async function handler(
 	// Handle tag creation event
 	if (
 		req.headers["x-github-event"] === "push" &&
-		githubBody?.ref?.startsWith("refs/tags/")
+		typeof githubBody?.ref === "string" &&
+		githubBody.ref.startsWith("refs/tags/")
 	) {
 		try {
-			const tagName = githubBody?.ref.replace("refs/tags/", "");
+			const tagName = githubBody.ref.replace("refs/tags/", "");
 			const repository = githubBody?.repository?.name;
 			const owner = githubBody?.repository?.owner?.name;
 			const deploymentTitle = `Tag created: ${tagName}`;
@@ -203,7 +204,7 @@ export default async function handler(
 
 	if (req.headers["x-github-event"] === "push") {
 		try {
-			const branchName = githubBody?.ref?.replace("refs/heads/", "");
+			const branchName = typeof githubBody?.ref === "string" ? githubBody.ref.replace("refs/heads/", "") : null;
 			const repository = githubBody?.repository?.name;
 
 			const deploymentTitle = extractCommitMessage(req.headers, req.body);

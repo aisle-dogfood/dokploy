@@ -314,11 +314,11 @@ export const extractHash = (headers: any, body: any) => {
 
 export const extractBranchName = (headers: any, body: any) => {
 	if (headers["x-github-event"] || headers["x-gitea-event"]) {
-		return body?.ref?.replace("refs/heads/", "");
+		return typeof body?.ref === "string" ? body.ref.replace("refs/heads/", "") : null;
 	}
 
 	if (headers["x-gitlab-event"]) {
-		return body?.ref ? body?.ref.replace("refs/heads/", "") : null;
+		return typeof body?.ref === "string" ? body.ref.replace("refs/heads/", "") : null;
 	}
 
 	if (headers["x-event-key"]?.includes("repo:push")) {
