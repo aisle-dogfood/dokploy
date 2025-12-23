@@ -10,10 +10,6 @@ import { Loader2 } from "lucide-react";
 import type { GetServerSidePropsContext } from "next";
 import type { ReactElement } from "react";
 
-const BASE_URL = "http://localhost:3001/metrics";
-
-const DEFAULT_TOKEN = "metrics";
-
 const Dashboard = () => {
 	const [toggleMonitoring, _setToggleMonitoring] = useLocalStorage(
 		"monitoring-enabled",
@@ -56,18 +52,7 @@ const Dashboard = () => {
 					{toggleMonitoring ? (
 						<Card className="bg-sidebar  p-2.5 rounded-xl  mx-auto">
 							<div className="rounded-xl bg-background shadow-md">
-								<ShowPaidMonitoring
-									BASE_URL={
-										process.env.NODE_ENV === "production"
-											? `http://${monitoring?.serverIp}:${monitoring?.metricsConfig?.server?.port}/metrics`
-											: BASE_URL
-									}
-									token={
-										process.env.NODE_ENV === "production"
-											? monitoring?.metricsConfig?.server?.token
-											: DEFAULT_TOKEN
-									}
-								/>
+								<ShowPaidMonitoring />
 							</div>
 						</Card>
 					) : (
