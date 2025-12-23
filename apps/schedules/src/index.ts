@@ -12,24 +12,16 @@ import {
 import { jobQueueSchema } from "./schema.js";
 import { initializeJobs } from "./utils.js";
 import { firstWorker, secondWorker } from "./workers.js";
+import { securityMiddleware, startCleanupTask } from "./security.js";
 
 const app = new Hono();
 
 cleanQueue();
 initializeJobs();
+startCleanupTask();
 
-app.use(async (c, next) => {
-	if (c.req.path === "/health") {
-		return next();
-	}
-	const authHeader = c.req.header("X-API-Key");
-
-	if (process.env.API_KEY !== authHeader) {
-		return c.json({ message: "Invalid API Key" }, 403);
-	}
-
-	return next();
-});
+// Apply security middleware with rate limiting, IP allow-listing, and audit logging
+app.use(securityMiddleware);
 
 app.post("/create-backup", zValidator("json", jobQueueSchema), async (c) => {
 	const data = c.req.valid("json");
