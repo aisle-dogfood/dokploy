@@ -16,5 +16,10 @@
 	"devDependencies": {
 		"@types/react": "18.2.33",
 		"@types/react-dom": "18.2.14"
+	},
+	"pnpm": {
+		"overrides": {
+			"nanoid": "^3.3.8"
+		}
 	}
 }
