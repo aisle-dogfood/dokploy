@@ -58,9 +58,11 @@ export default async function handler(
 				return;
 			}
 		} else if (sourceType === "github") {
-			const normalizedCommits = req.body?.commits?.flatMap(
-				(commit: any) => commit.modified,
-			);
+			const normalizedCommits = Array.isArray(req.body?.commits)
+				? req.body.commits.flatMap((commit: any) => 
+					Array.isArray(commit?.modified) ? commit.modified : []
+				  ).filter((item: any) => typeof item === "string")
+				: [];
 
 			const shouldDeployPaths = shouldDeploy(
 				application.watchPaths,
@@ -88,18 +90,12 @@ export default async function handler(
 			const provider = getProviderByHeader(req.headers);
 			let normalizedCommits: string[] = [];
 
-			if (provider === "github") {
-				normalizedCommits = req.body?.commits?.flatMap(
-					(commit: any) => commit.modified,
-				);
-			} else if (provider === "gitlab") {
-				normalizedCommits = req.body?.commits?.flatMap(
-					(commit: any) => commit.modified,
-				);
-			} else if (provider === "gitea") {
-				normalizedCommits = req.body?.commits?.flatMap(
-					(commit: any) => commit.modified,
-				);
+			if (provider === "github" || provider === "gitlab" || provider === "gitea") {
+				normalizedCommits = Array.isArray(req.body?.commits)
+					? req.body.commits.flatMap((commit: any) => 
+						Array.isArray(commit?.modified) ? commit.modified : []
+					  ).filter((item: any) => typeof item === "string")
+					: [];
 			}
 
 			const shouldDeployPaths = shouldDeploy(
@@ -114,9 +110,11 @@ export default async function handler(
 		} else if (sourceType === "gitlab") {
 			const branchName = extractBranchName(req.headers, req.body);
 
-			const normalizedCommits = req.body?.commits?.flatMap(
-				(commit: any) => commit.modified,
-			);
+			const normalizedCommits = Array.isArray(req.body?.commits)
+				? req.body.commits.flatMap((commit: any) => 
+					Array.isArray(commit?.modified) ? commit.modified : []
+				  ).filter((item: any) => typeof item === "string")
+				: [];
 
 			const shouldDeployPaths = shouldDeploy(
 				application.watchPaths,
@@ -158,9 +156,11 @@ export default async function handler(
 		} else if (sourceType === "gitea") {
 			const branchName = extractBranchName(req.headers, req.body);
 
-			const normalizedCommits = req.body?.commits?.flatMap(
-				(commit: any) => commit.modified,
-			);
+			const normalizedCommits = Array.isArray(req.body?.commits)
+				? req.body.commits.flatMap((commit: any) => 
+					Array.isArray(commit?.modified) ? commit.modified : []
+				  ).filter((item: any) => typeof item === "string")
+				: [];
 
 			const shouldDeployPaths = shouldDeploy(
 				application.watchPaths,
@@ -260,7 +260,11 @@ export const extractCommitMessage = (headers: any, body: any) => {
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
+		return body?.push && 
+			typeof body.push === "object" &&
+			Array.isArray(body.push.changes) && 
+			body.push.changes.length > 0 &&
+			body.push.changes[0]?.new?.target?.message
 			? body.push.changes[0].new.target.message
 			: "NEW COMMIT";
 	}
@@ -299,7 +303,11 @@ export const extractHash = (headers: any, body: any) => {
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
+		return body?.push && 
+			typeof body.push === "object" &&
+			Array.isArray(body.push.changes) && 
+			body.push.changes.length > 0 &&
+			body.push.changes[0]?.new?.target?.hash
 			? body.push.changes[0].new.target.hash
 			: "NEW COMMIT";
 	}
@@ -322,7 +330,13 @@ export const extractBranchName = (headers: any, body: any) => {
 	}
 
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body?.push?.changes[0]?.new?.name;
+		return body?.push && 
+			typeof body.push === "object" &&
+			Array.isArray(body.push.changes) && 
+			body.push.changes.length > 0 &&
+			body.push.changes[0]?.new?.name
+			? body.push.changes[0].new.name
+			: null;
 	}
 
 	return null;
@@ -354,11 +368,16 @@ export const extractCommitedPaths = async (
 	bitbucketAppPassword: string | null,
 	repository: string | null,
 ) => {
-	const changes = body.push?.changes || [];
+	// Validate body.push and body.push.changes are properly typed
+	if (!body?.push || typeof body.push !== "object" || !Array.isArray(body.push.changes)) {
+		return [];
+	}
+
+	const changes = body.push.changes;
 
 	const commitHashes = changes
-		.map((change: any) => change.new?.target?.hash)
-		.filter(Boolean);
+		.map((change: any) => change?.new?.target?.hash)
+		.filter((hash): hash is string => typeof hash === "string");
 	const commitedPaths: string[] = [];
 	for (const commit of commitHashes) {
 		const url = `https://api.bitbucket.org/2.0/repositories/${bitbucketUsername}/${repository}/diffstat/${commit}`;
@@ -371,8 +390,12 @@ export const extractCommitedPaths = async (
 			});
 
 			const data = await response.json();
-			for (const value of data.values) {
-				commitedPaths.push(value.new?.path);
+			if (data?.values && Array.isArray(data.values)) {
+				for (const value of data.values) {
+					if (value?.new?.path) {
+						commitedPaths.push(value.new.path);
+					}
+				}
 			}
 		} catch (error) {
 			console.error(
