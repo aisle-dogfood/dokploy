@@ -101,6 +101,15 @@ export default async function handler(
 			const tagName = githubBody?.ref.replace("refs/tags/", "");
 			const repository = githubBody?.repository?.name;
 			const owner = githubBody?.repository?.owner?.name;
+			
+			// Validate required fields
+			if (!tagName || !repository || !owner) {
+				res.status(400).json({ 
+					message: "Missing required fields in webhook payload (tag, repository, or owner)" 
+				});
+				return;
+			}
+			
 			const deploymentTitle = `Tag created: ${tagName}`;
 			const deploymentHash = extractHash(req.headers, githubBody);
 
@@ -205,10 +214,18 @@ export default async function handler(
 		try {
 			const branchName = githubBody?.ref?.replace("refs/heads/", "");
 			const repository = githubBody?.repository?.name;
+			const owner = githubBody?.repository?.owner?.name;
+			
+			// Validate required fields
+			if (!branchName || !repository || !owner) {
+				res.status(400).json({ 
+					message: "Missing required fields in webhook payload (branch, repository, or owner)" 
+				});
+				return;
+			}
 
 			const deploymentTitle = extractCommitMessage(req.headers, req.body);
 			const deploymentHash = extractHash(req.headers, req.body);
-			const owner = githubBody?.repository?.owner?.name;
 			const normalizedCommits = githubBody?.commits?.flatMap(
 				(commit: any) => commit.modified,
 			);
@@ -321,6 +338,14 @@ export default async function handler(
 		const action = githubBody?.action;
 
 		if (action === "closed") {
+			// Validate required fields
+			if (!prId) {
+				res.status(400).json({
+					message: "Missing required field in webhook payload (pull request ID)",
+				});
+				return;
+			}
+			
 			const previewDeploymentResult =
 				await findPreviewDeploymentsByPullRequestId(prId);
 
@@ -350,6 +375,14 @@ export default async function handler(
 			const branch = githubBody?.pull_request?.base?.ref;
 			const owner = githubBody?.repository?.owner?.login;
 			const prAuthor = githubBody?.pull_request?.user?.login;
+
+			// Validate required fields
+			if (!repository || !deploymentHash || !branch || !owner) {
+				res.status(400).json({
+					message: "Missing required fields in webhook payload (repository, deploymentHash, branch, or owner)",
+				});
+				return;
+			}
 
 			// Validate PR author information is present
 			if (!prAuthor) {
