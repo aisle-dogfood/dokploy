@@ -19,18 +19,36 @@ export default async function handler(
 ) {
 	const { code, state, installation_id, userId }: Query = req.query as Query;
 
-	if (!code) {
-		return res.status(400).json({ error: "Missing code parameter" });
+	if (!code || Array.isArray(code)) {
+		return res.status(400).json({ error: "Missing or invalid code parameter" });
 	}
-	const [action, value] = state?.split(":");
+
+	if (!state || Array.isArray(state)) {
+		return res.status(400).json({ error: "Missing or invalid state parameter" });
+	}
+
+	const stateParts = state.split(":");
+	if (stateParts.length !== 2) {
+		return res.status(400).json({ error: "Invalid state format" });
+	}
+
+	const [action, value] = stateParts;
 	// Value could be the organizationId or the githubProviderId
 
+	if (!action || !value) {
+		return res.status(400).json({ error: "Invalid state format" });
+	}
+
 	if (action === "gh_init") {
+		if (!userId || Array.isArray(userId)) {
+			return res.status(400).json({ error: "Missing or invalid userId parameter" });
+		}
+
 		const octokit = new Octokit({});
 		const { data } = await octokit.request(
 			"POST /app-manifests/{code}/conversions",
 			{
-				code: code as string,
+				code: code,
 			},
 		);
 
@@ -44,17 +62,23 @@ export default async function handler(
 				githubWebhookSecret: data.webhook_secret,
 				githubPrivateKey: data.pem,
 			},
-			value as string,
+			value,
 			userId,
 		);
 	} else if (action === "gh_setup") {
+		if (!installation_id || Array.isArray(installation_id)) {
+			return res.status(400).json({ error: "Missing or invalid installation_id parameter" });
+		}
+
 		await db
 			.update(github)
 			.set({
 				githubInstallationId: installation_id,
 			})
-			.where(eq(github.githubId, value as string))
+			.where(eq(github.githubId, value))
 			.returning();
+	} else {
+		return res.status(400).json({ error: "Invalid action in state parameter" });
 	}
 
 	res.redirect(307, "/dashboard/settings/git-providers");
