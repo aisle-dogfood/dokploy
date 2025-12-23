@@ -44,10 +44,31 @@ func main() {
 
 	app := fiber.New()
 
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
+	// Configure CORS with restricted origins
+	corsConfig := cors.Config{
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}))
+	}
+	
+	// Use configured allowed origins if provided, otherwise disable CORS (empty origins)
+	if len(cfg.Server.AllowedOrigins) > 0 {
+		// Join allowed origins with comma as required by Fiber CORS middleware
+		allowedOriginsStr := ""
+		for i, origin := range cfg.Server.AllowedOrigins {
+			if i > 0 {
+				allowedOriginsStr += ","
+			}
+			allowedOriginsStr += origin
+		}
+		corsConfig.AllowOrigins = allowedOriginsStr
+		log.Printf("CORS enabled for origins: %s", allowedOriginsStr)
+	} else {
+		// No origins configured - disable CORS by not allowing any origin
+		// This is the most secure default for a monitoring service
+		corsConfig.AllowOrigins = ""
+		log.Printf("CORS disabled - no allowed origins configured")
+	}
+	
+	app.Use(cors.New(corsConfig))
 
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{

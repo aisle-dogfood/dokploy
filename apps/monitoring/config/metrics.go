@@ -9,13 +9,14 @@ import (
 
 type Config struct {
 	Server struct {
-		ServerType    string `json:"type"`
-		RefreshRate   int    `json:"refreshRate"`
-		Port          int    `json:"port"`
-		Token         string `json:"token"`
-		UrlCallback   string `json:"urlCallback"`
-		CronJob       string `json:"cronJob"`
-		RetentionDays int    `json:"retentionDays"`
+		ServerType    string   `json:"type"`
+		RefreshRate   int      `json:"refreshRate"`
+		Port          int      `json:"port"`
+		Token         string   `json:"token"`
+		UrlCallback   string   `json:"urlCallback"`
+		CronJob       string   `json:"cronJob"`
+		RetentionDays int      `json:"retentionDays"`
+		AllowedOrigins []string `json:"allowedOrigins,omitempty"`
 		Thresholds    struct {
 			CPU    int `json:"cpu"`
 			Memory int `json:"memory"`
