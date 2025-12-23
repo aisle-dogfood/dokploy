@@ -301,11 +301,7 @@ export const ShowServers = () => {
 																						/>
 																						{isCloud && (
 																							<ShowMonitoringModal
-																								url={`http://${server.ipAddress}:${server?.metricsConfig?.server?.port}/metrics`}
-																								token={
-																									server?.metricsConfig?.server
-																										?.token
-																								}
+																								serverId={server.serverId}
 																							/>
 																						)}
 

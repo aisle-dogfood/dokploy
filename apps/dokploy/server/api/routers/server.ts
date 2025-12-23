@@ -386,20 +386,58 @@ export const serverRouter = createTRPCRouter({
 	getServerMetrics: protectedProcedure
 		.input(
 			z.object({
-				url: z.string(),
-				token: z.string(),
+				serverId: z.string().optional(),
 				dataPoints: z.string(),
 			}),
 		)
-		.query(async ({ input }) => {
+		.query(async ({ input, ctx }) => {
 			try {
-				const url = new URL(input.url);
+				let metricsConfig: {
+					server?: {
+						port?: number;
+						token?: string;
+					};
+				} | null;
+				let ipAddress: string;
+
+				if (input.serverId) {
+					// Multi-server (cloud) mode: retrieve server configuration from database
+					const serverData = await findServerById(input.serverId);
+					
+					// Verify authorization
+					if (serverData.organizationId !== ctx.session.activeOrganizationId) {
+						throw new TRPCError({
+							code: "UNAUTHORIZED",
+							message: "You are not authorized to access this server's metrics",
+						});
+					}
+
+					metricsConfig = serverData.metricsConfig as typeof metricsConfig;
+					ipAddress = serverData.ipAddress;
+				} else {
+					// Self-hosted mode: retrieve user's metrics configuration
+					const user = await findUserById(ctx.user.ownerId);
+					metricsConfig = user.metricsConfig as typeof metricsConfig;
+					ipAddress = user.serverIp || "localhost";
+				}
+
+				// Extract monitoring configuration
+				if (!metricsConfig?.server?.port || !metricsConfig?.server?.token) {
+					throw new Error(
+						"Monitoring is not configured for this server. Please set up monitoring in the server settings.",
+					);
+				}
+
+				// Construct the metrics URL using server-side credentials
+				const url = new URL(`http://${ipAddress}:${metricsConfig.server.port}/metrics`);
 				url.searchParams.append("limit", input.dataPoints);
+				
 				const response = await fetch(url.toString(), {
 					headers: {
-						Authorization: `Bearer ${input.token}`,
+						Authorization: `Bearer ${metricsConfig.server.token}`,
 					},
 				});
+				
 				if (!response.ok) {
 					throw new Error(
 						`Error ${response.status}: ${response.statusText}. Ensure the container is running and this service is included in the monitoring configuration.`,
