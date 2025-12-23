@@ -260,8 +260,8 @@ export const extractCommitMessage = (headers: any, body: any) => {
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
-			? body.push.changes[0].new.target.message
+		return body.push?.changes && body.push.changes.length > 0
+			? body.push.changes[0]?.new?.target?.message
 			: "NEW COMMIT";
 	}
 
@@ -299,8 +299,8 @@ export const extractHash = (headers: any, body: any) => {
 
 	// Bitbucket
 	if (headers["x-event-key"]?.includes("repo:push")) {
-		return body.push.changes && body.push.changes.length > 0
-			? body.push.changes[0].new.target.hash
+		return body.push?.changes && body.push.changes.length > 0
+			? body.push.changes[0]?.new?.target?.hash
 			: "NEW COMMIT";
 	}
 
