@@ -729,6 +729,13 @@
       "when": 1752465764072,
       "tag": "0103_cultured_pestilence",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1752500000000,
+      "tag": "0104_remove_root_default",
+      "breakpoints": true
     }
   ]
 }
