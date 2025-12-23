@@ -386,18 +386,39 @@ export const serverRouter = createTRPCRouter({
 	getServerMetrics: protectedProcedure
 		.input(
 			z.object({
-				url: z.string(),
-				token: z.string(),
+				serverId: z.string().optional(),
 				dataPoints: z.string(),
 			}),
 		)
-		.query(async ({ input }) => {
+		.query(async ({ input, ctx }) => {
 			try {
-				const url = new URL(input.url);
+				let metricsConfig;
+				let serverIp;
+
+				if (input.serverId) {
+					// Fetch external server metrics config
+					const serverData = await findServerById(input.serverId);
+					metricsConfig = serverData.metricsConfig;
+					serverIp = serverData.ipAddress;
+				} else {
+					// Fetch main server metrics config from user
+					const user = await findUserById(ctx.user.ownerId);
+					metricsConfig = user.metricsConfig;
+					serverIp = user.serverIp;
+				}
+
+				if (!metricsConfig?.server?.token) {
+					throw new Error(
+						"Monitoring is not configured for this server. Please setup monitoring in the web server section.",
+					);
+				}
+
+				const baseUrl = `http://${serverIp}:${metricsConfig.server.port}/metrics`;
+				const url = new URL(baseUrl);
 				url.searchParams.append("limit", input.dataPoints);
 				const response = await fetch(url.toString(), {
 					headers: {
-						Authorization: `Bearer ${input.token}`,
+						Authorization: `Bearer ${metricsConfig.server.token}`,
 					},
 				});
 				if (!response.ok) {
