@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import {
+	SIDEBAR_COOKIE_MAX_AGE,
 	SIDEBAR_COOKIE_NAME,
 	Sidebar,
 	SidebarContent,
@@ -801,7 +802,7 @@ export default function Page({ children }: Props) {
 			onOpenChange={(open) => {
 				setDefaultOpen(open);
 
-				document.cookie = `${SIDEBAR_COOKIE_NAME}=${open}`;
+				document.cookie = `${SIDEBAR_COOKIE_NAME}=${open}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}; Secure; SameSite=Lax`;
 			}}
 			style={
 				{
