@@ -214,6 +214,18 @@ export default async function handler(
 }
 
 /**
+ * Safely extract a header value as a string.
+ * HTTP headers can be string, string[], or undefined.
+ * This function normalizes them to a string for safe string operations.
+ */
+function getHeaderValue(headerValue: string | string[] | undefined): string {
+	if (Array.isArray(headerValue)) {
+		return headerValue[0] || "";
+	}
+	return headerValue || "";
+}
+
+/**
  * Return the last part of the image name, which is the tag
  * Example: "my-image" => null
  * Example: "my-image:latest" => "latest"
@@ -237,7 +249,7 @@ export const extractImageTagFromRequest = (
 	headers: any,
 	body: any,
 ): string | null => {
-	if (headers["user-agent"]?.includes("Go-http-client")) {
+	if (getHeaderValue(headers["user-agent"]).includes("Go-http-client")) {
 		if (body.push_data && body.repository) {
 			return body.push_data.tag;
 		}
@@ -259,7 +271,7 @@ export const extractCommitMessage = (headers: any, body: any) => {
 	}
 
 	// Bitbucket
-	if (headers["x-event-key"]?.includes("repo:push")) {
+	if (getHeaderValue(headers["x-event-key"]).includes("repo:push")) {
 		return body.push.changes && body.push.changes.length > 0
 			? body.push.changes[0].new.target.message
 			: "NEW COMMIT";
@@ -272,7 +284,7 @@ export const extractCommitMessage = (headers: any, body: any) => {
 			: "NEW COMMIT";
 	}
 
-	if (headers["user-agent"]?.includes("Go-http-client")) {
+	if (getHeaderValue(headers["user-agent"]).includes("Go-http-client")) {
 		if (body.push_data && body.repository) {
 			return `Docker image pushed: ${body.repository.repo_name}:${body.push_data.tag} by ${body.push_data.pusher}`;
 		}
@@ -298,7 +310,7 @@ export const extractHash = (headers: any, body: any) => {
 	}
 
 	// Bitbucket
-	if (headers["x-event-key"]?.includes("repo:push")) {
+	if (getHeaderValue(headers["x-event-key"]).includes("repo:push")) {
 		return body.push.changes && body.push.changes.length > 0
 			? body.push.changes[0].new.target.hash
 			: "NEW COMMIT";
@@ -321,7 +333,7 @@ export const extractBranchName = (headers: any, body: any) => {
 		return body?.ref ? body?.ref.replace("refs/heads/", "") : null;
 	}
 
-	if (headers["x-event-key"]?.includes("repo:push")) {
+	if (getHeaderValue(headers["x-event-key"]).includes("repo:push")) {
 		return body?.push?.changes[0]?.new?.name;
 	}
 
@@ -341,7 +353,7 @@ export const getProviderByHeader = (headers: any) => {
 		return "gitlab";
 	}
 
-	if (headers["x-event-key"]?.includes("repo:push")) {
+	if (getHeaderValue(headers["x-event-key"]).includes("repo:push")) {
 		return "bitbucket";
 	}
 
