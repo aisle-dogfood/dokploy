@@ -20,11 +20,55 @@ import {
 import { execAsync, execAsyncRemote } from "../process/execAsync";
 import { spawnAsync } from "../process/spawnAsync";
 
+const validateAppName = (appName: string): void => {
+	const appNamePattern = /^[A-Za-z0-9._-]+$/;
+	if (!appNamePattern.test(appName)) {
+		throw new Error(`Invalid appName: contains unsafe characters. Only alphanumeric, dots, hyphens, and underscores are allowed.`);
+	}
+	if (appName.length > 100) {
+		throw new Error(`Invalid appName: too long. Maximum 100 characters allowed.`);
+	}
+};
+
+const validateComposePath = (composePath: string): void => {
+	const composePathPattern = /^[A-Za-z0-9._/-]+$/;
+	if (!composePathPattern.test(composePath)) {
+		throw new Error(`Invalid composePath: contains unsafe characters. Only alphanumeric, dots, hyphens, underscores, and forward slashes are allowed.`);
+	}
+	if (composePath.includes('..')) {
+		throw new Error(`Invalid composePath: path traversal not allowed.`);
+	}
+	if (composePath.length > 500) {
+		throw new Error(`Invalid composePath: too long. Maximum 500 characters allowed.`);
+	}
+};
+
+const validateLogPath = (logPath: string): void => {
+	const logPathPattern = /^[A-Za-z0-9._/-]+$/;
+	if (!logPathPattern.test(logPath)) {
+		throw new Error(`Invalid logPath: contains unsafe characters. Only alphanumeric, dots, hyphens, underscores, and forward slashes are allowed.`);
+	}
+	if (logPath.includes('..')) {
+		throw new Error(`Invalid logPath: path traversal not allowed.`);
+	}
+	if (logPath.length > 500) {
+		throw new Error(`Invalid logPath: too long. Maximum 500 characters allowed.`);
+	}
+};
+
+const escapeShellArg = (arg: string): string => {
+	return `'${arg.replace(/'/g, "'\"'\"'")}'`;
+};
+
 export type ComposeNested = InferResultType<
 	"compose",
 	{ project: true; mounts: true; domains: true }
 >;
 export const buildCompose = async (compose: ComposeNested, logPath: string) => {
+	validateAppName(compose.appName);
+	validateComposePath(compose.composePath);
+	validateLogPath(logPath);
+
 	const writeStream = createWriteStream(logPath, { flags: "a" });
 	const { sourceType, appName, mounts, composeType, domains } = compose;
 	try {
@@ -34,8 +78,9 @@ export const buildCompose = async (compose: ComposeNested, logPath: string) => {
 		createEnvFile(compose);
 
 		if (compose.isolatedDeployment) {
+			const escapedAppName = escapeShellArg(compose.appName);
 			await execAsync(
-				`docker network inspect ${compose.appName} >/dev/null 2>&1 || docker network create ${composeType === "stack" ? "--driver overlay" : ""} --attachable ${compose.appName}`,
+				`docker network inspect ${escapedAppName} >/dev/null 2>&1 || docker network create ${composeType === "stack" ? "--driver overlay" : ""} --attachable ${escapedAppName}`,
 			);
 		}
 
@@ -79,8 +124,9 @@ export const buildCompose = async (compose: ComposeNested, logPath: string) => {
 		);
 
 		if (compose.isolatedDeployment) {
+			const escapedAppName = escapeShellArg(compose.appName);
 			await execAsync(
-				`docker network connect ${compose.appName} $(docker ps --filter "name=dokploy-traefik" -q) >/dev/null 2>&1`,
+				`docker network connect ${escapedAppName} $(docker ps --filter "name=dokploy-traefik" -q) >/dev/null 2>&1`,
 			).catch(() => {});
 		}
 
@@ -97,6 +143,10 @@ export const getBuildComposeCommand = async (
 	compose: ComposeNested,
 	logPath: string,
 ) => {
+	validateAppName(compose.appName);
+	validateComposePath(compose.composePath);
+	validateLogPath(logPath);
+
 	const { COMPOSE_PATH } = paths(true);
 	const { sourceType, appName, mounts, composeType, domains } = compose;
 	const command = createCommand(compose);
@@ -127,25 +177,30 @@ Compose Type: ${composeType} ✅`;
 		borderStyle: "double",
 	});
 
+	const escapedLogPath = escapeShellArg(logPath);
+	const escapedAppName = escapeShellArg(compose.appName);
+	const escapedProjectPath = escapeShellArg(projectPath);
+	const escapedLogBox = escapeShellArg(logBox);
+
 	const bashCommand = `
 	set -e
 	{
-		echo "${logBox}" >> "${logPath}"
+		echo ${escapedLogBox} >> ${escapedLogPath}
 	
 		${newCompose}
 	
 		${envCommand}
 	
-		cd "${projectPath}";
+		cd ${escapedProjectPath};
 
         ${exportEnvCommand}
-		${compose.isolatedDeployment ? `docker network inspect ${compose.appName} >/dev/null 2>&1 || docker network create --attachable ${compose.appName}` : ""}
-		docker ${command.split(" ").join(" ")} >> "${logPath}" 2>&1 || { echo "Error: ❌ Docker command failed" >> "${logPath}"; exit 1; }
-		${compose.isolatedDeployment ? `docker network connect ${compose.appName} $(docker ps --filter "name=dokploy-traefik" -q) >/dev/null 2>&1` : ""}
+		${compose.isolatedDeployment ? `docker network inspect ${escapedAppName} >/dev/null 2>&1 || docker network create --attachable ${escapedAppName}` : ""}
+		docker ${command.split(" ").join(" ")} >> ${escapedLogPath} 2>&1 || { echo "Error: ❌ Docker command failed" >> ${escapedLogPath}; exit 1; }
+		${compose.isolatedDeployment ? `docker network connect ${escapedAppName} $(docker ps --filter "name=dokploy-traefik" -q) >/dev/null 2>&1` : ""}
 	
-		echo "Docker Compose Deployed: ✅" >> "${logPath}"
+		echo "Docker Compose Deployed: ✅" >> ${escapedLogPath}
 	} || {
-		echo "Error: ❌ Script execution failed" >> "${logPath}"
+		echo "Error: ❌ Script execution failed" >> ${escapedLogPath}
 		exit 1
 	}
 	`;
@@ -212,6 +267,9 @@ const createEnvFile = (compose: ComposeNested) => {
 };
 
 export const getCreateEnvFileCommand = (compose: ComposeNested) => {
+	validateAppName(compose.appName);
+	validateComposePath(compose.composePath);
+
 	const { COMPOSE_PATH } = paths(true);
 	const { env, composePath, appName } = compose;
 	const composeFilePath =
@@ -236,9 +294,12 @@ export const getCreateEnvFileCommand = (compose: ComposeNested) => {
 	).join("\n");
 
 	const encodedContent = encodeBase64(envFileContent);
+	const escapedEnvFilePath = escapeShellArg(envFilePath);
+	const escapedEncodedContent = escapeShellArg(encodedContent);
+	
 	return `
-touch ${envFilePath};
-echo "${encodedContent}" | base64 -d > "${envFilePath}";
+touch ${escapedEnvFilePath};
+echo ${escapedEncodedContent} | base64 -d > ${escapedEnvFilePath};
 	`;
 };
 
