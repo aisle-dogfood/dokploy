@@ -153,7 +153,14 @@ const createSchema = createInsertSchema(compose, {
 	projectId: z.string(),
 	customGitSSHKeyId: z.string().optional(),
 	command: z.string().optional(),
-	composePath: z.string().min(1),
+	appName: z.string().min(1).max(100).regex(/^[A-Za-z0-9._-]+$/, {
+		message: "App name can only contain alphanumeric characters, dots, hyphens, and underscores"
+	}),
+	composePath: z.string().min(1).max(500).regex(/^[A-Za-z0-9._/-]+$/, {
+		message: "Compose path can only contain alphanumeric characters, dots, hyphens, underscores, and forward slashes"
+	}).refine((path) => !path.includes('..'), {
+		message: "Path traversal not allowed in compose path"
+	}),
 	composeType: z.enum(["docker-compose", "stack"]).optional(),
 	watchPaths: z.array(z.string()).optional(),
 });
