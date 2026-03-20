@@ -159,6 +159,37 @@ export const execAsyncRemote = async (
 	});
 };
 
+// Safe remote execution function that properly handles arguments and stdin
+export const execFileAsyncRemote = async (
+	serverId: string | null,
+	command: string,
+	args: string[],
+	options: { input?: string } = {},
+	onData?: (data: string) => void,
+): Promise<{ stdout: string; stderr: string }> => {
+	if (!serverId) return { stdout: "", stderr: "" };
+	
+	// Escape shell arguments safely using printf %q
+	const escapeShellArg = (arg: string): string => {
+		// Use printf %q to safely quote shell arguments
+		return `$(printf %q "${arg.replace(/"/g, '\\"')}")`;
+	};
+	
+	// Build the command with properly escaped arguments
+	const escapedArgs = args.map(escapeShellArg).join(' ');
+	let safeCommand: string;
+	
+	if (options.input) {
+		// Use base64 encoding for stdin input to avoid shell interpretation
+		const base64Input = Buffer.from(options.input).toString('base64');
+		safeCommand = `printf '%s' '${base64Input}' | base64 -d | ${command} ${escapedArgs}`;
+	} else {
+		safeCommand = `${command} ${escapedArgs}`;
+	}
+	
+	return execAsyncRemote(serverId, safeCommand, onData);
+};
+
 export const sleep = (ms: number) => {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 };
