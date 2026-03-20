@@ -12,6 +12,7 @@ import {
 	createRegistry,
 	execAsyncRemote,
 	execFileAsync,
+	execFileAsyncRemote,
 	findRegistryById,
 	removeRegistry,
 	updateRegistry,
@@ -99,9 +100,13 @@ export const registryRouter = createTRPCRouter({
 				}
 
 				if (input.serverId && input.serverId !== "none") {
-					await execAsyncRemote(
+					await execFileAsyncRemote(
 						input.serverId,
-						`echo ${input.password} | docker ${args.join(" ")}`,
+						"docker",
+						args,
+						{
+							input: input.password,
+						},
 					);
 				} else {
 					await execFileAsync("docker", args, {
