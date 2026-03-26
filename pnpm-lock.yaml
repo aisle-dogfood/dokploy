@@ -266,8 +266,8 @@ importers:
         specifier: 5.1.1
         version: 5.1.1
       better-auth:
-        specifier: v1.2.8-beta.7
-        version: 1.2.8-beta.7
+        specifier: 1.2.10
+        version: 1.2.10
       bl:
         specifier: 6.0.11
         version: 6.0.11
@@ -646,8 +646,8 @@ importers:
         specifier: 5.1.1
         version: 5.1.1
       better-auth:
-        specifier: v1.2.8-beta.7
-        version: 1.2.8-beta.7
+        specifier: 1.2.10
+        version: 1.2.10
       bl:
         specifier: 6.0.11
         version: 6.0.11
@@ -3790,8 +3790,8 @@ packages:
   before-after-hook@2.2.3:
     resolution: {integrity: sha512-NzUnlZexiaH/46WDhANlyR2bXRopNg4F/zuSA3OpZnllCUgRaOF2znDioDWrmbNVsuZk6l9pMquQB38cfBZwkQ==}
 
-  better-auth@1.2.8-beta.7:
-    resolution: {integrity: sha512-gVApvvhnPVqMCYYLMhxUfbTi5fJYfp9rcsoJSjjTOMV+CIc7KVlYN6Qo8E7ju1JeRU5ae1Wl1NdXrolRJHjmaQ==}
+  better-auth@1.2.10:
+    resolution: {integrity: sha512-nEj1RG4DdLUuJiV5CR93ORyPCptGRBwksaPPCkUtGo9ka+UIlTpaiKoTaTqVLLYlqwX4bOj9tJ32oBNdf2G3Kg==}
 
   better-call@1.0.9:
     resolution: {integrity: sha512-Qfm0gjk0XQz0oI7qvTK1hbqTsBY4xV2hsHAxF8LZfUYl3RaECCIifXuVqtPpZJWvlCCMlQSvkvhhyuApGUba6g==}
@@ -10198,7 +10198,7 @@ snapshots:
 
   before-after-hook@2.2.3: {}
 
-  better-auth@1.2.8-beta.7:
+  better-auth@1.2.10:
     dependencies:
       '@better-auth/utils': 0.2.5
       '@better-fetch/fetch': 1.1.18
