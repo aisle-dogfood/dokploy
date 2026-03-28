@@ -1,5 +1,6 @@
 import { db } from "@dokploy/server/db";
 import { type apiCreateRegistry, registry } from "@dokploy/server/db/schema";
+import { hashPassword } from "@dokploy/server/db/schema/utils";
 import {
 	execAsync,
 	execAsyncRemote,
@@ -15,10 +16,15 @@ export const createRegistry = async (
 	organizationId: string,
 ) => {
 	return await db.transaction(async (tx) => {
+		// Store the plaintext password for Docker login before hashing
+		const plaintextPassword = input.password;
+
 		const newRegistry = await tx
 			.insert(registry)
 			.values({
 				...input,
+				// Hash the password before storing
+				password: await hashPassword(input.password),
 				organizationId: organizationId,
 			})
 			.returning()
@@ -37,7 +43,8 @@ export const createRegistry = async (
 				message: "Select a server to add the registry",
 			});
 		}
-		const loginCommand = `echo ${input.password} | docker login ${input.registryUrl} --username ${input.username} --password-stdin`;
+		// Use the plaintext password for Docker login (not the hash)
+		const loginCommand = `echo ${plaintextPassword} | docker login ${input.registryUrl} --username ${input.username} --password-stdin`;
 		if (input.serverId && input.serverId !== "none") {
 			await execAsyncRemote(input.serverId, loginCommand);
 		} else if (newRegistry.registryType === "cloud") {
@@ -82,16 +89,23 @@ export const updateRegistry = async (
 	registryData: Partial<Registry> & { serverId?: string | null },
 ) => {
 	try {
+		// Store the plaintext password for Docker login before hashing
+		const plaintextPassword = registryData.password;
+
+		// Prepare the update data
+		const updateData = { ...registryData };
+
+		// Hash the password if it's being updated
+		if (updateData.password) {
+			updateData.password = await hashPassword(updateData.password);
+		}
+
 		const response = await db
 			.update(registry)
-			.set({
-				...registryData,
-			})
+			.set(updateData)
 			.where(eq(registry.registryId, registryId))
 			.returning()
 			.then((res) => res[0]);
-
-		const loginCommand = `echo ${response?.password} | docker login ${response?.registryUrl} --username ${response?.username} --password-stdin`;
 
 		if (
 			IS_CLOUD &&
@@ -104,10 +118,15 @@ export const updateRegistry = async (
 			});
 		}
 
-		if (registryData?.serverId && registryData?.serverId !== "none") {
-			await execAsyncRemote(registryData.serverId, loginCommand);
-		} else if (response?.registryType === "cloud") {
-			await execAsync(loginCommand);
+		// Only run Docker login if password was provided
+		if (plaintextPassword) {
+			const loginCommand = `echo ${plaintextPassword} | docker login ${response?.registryUrl} --username ${response?.username} --password-stdin`;
+
+			if (registryData?.serverId && registryData?.serverId !== "none") {
+				await execAsyncRemote(registryData.serverId, loginCommand);
+			} else if (response?.registryType === "cloud") {
+				await execAsync(loginCommand);
+			}
 		}
 
 		return response;

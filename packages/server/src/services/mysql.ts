@@ -1,6 +1,6 @@
 import { db } from "@dokploy/server/db";
 import { type apiCreateMySql, backups, mysql } from "@dokploy/server/db/schema";
-import { buildAppName } from "@dokploy/server/db/schema";
+import { buildAppName, hashPassword } from "@dokploy/server/db/schema";
 import { generatePassword } from "@dokploy/server/templates";
 import { buildMysql } from "@dokploy/server/utils/databases/mysql";
 import { pullImage } from "@dokploy/server/utils/docker/utils";
@@ -23,16 +23,20 @@ export const createMysql = async (input: typeof apiCreateMySql._type) => {
 		});
 	}
 
+	const password = input.databasePassword
+		? input.databasePassword
+		: generatePassword();
+	const rootPassword = input.databaseRootPassword
+		? input.databaseRootPassword
+		: generatePassword();
+
 	const newMysql = await db
 		.insert(mysql)
 		.values({
 			...input,
-			databasePassword: input.databasePassword
-				? input.databasePassword
-				: generatePassword(),
-			databaseRootPassword: input.databaseRootPassword
-				? input.databaseRootPassword
-				: generatePassword(),
+			// Hash passwords before storing
+			databasePassword: await hashPassword(password),
+			databaseRootPassword: await hashPassword(rootPassword),
 			appName,
 		})
 		.returning()
@@ -78,11 +82,23 @@ export const updateMySqlById = async (
 	mysqlData: Partial<MySql>,
 ) => {
 	const { appName, ...rest } = mysqlData;
+
+	// Prepare the update data
+	const updateData = { ...rest };
+
+	// Hash passwords if they're being updated
+	if (updateData.databasePassword) {
+		updateData.databasePassword = await hashPassword(updateData.databasePassword);
+	}
+	if (updateData.databaseRootPassword) {
+		updateData.databaseRootPassword = await hashPassword(
+			updateData.databaseRootPassword,
+		);
+	}
+
 	const result = await db
 		.update(mysql)
-		.set({
-			...rest,
-		})
+		.set(updateData)
 		.where(eq(mysql.mysqlId, mysqlId))
 		.returning();
 

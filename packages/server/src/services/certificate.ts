@@ -6,6 +6,10 @@ import {
 	type apiCreateCertificate,
 	certificates,
 } from "@dokploy/server/db/schema";
+import {
+	decryptSecret,
+	encryptSecret,
+} from "@dokploy/server/db/schema/utils";
 import { removeDirectoryIfExistsContent } from "@dokploy/server/utils/filesystem/directory";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
@@ -28,7 +32,11 @@ export const findCertificateById = async (certificateId: string) => {
 		});
 	}
 
-	return certificate;
+	// Decrypt the private key when reading
+	return {
+		...certificate,
+		privateKey: decryptSecret(certificate.privateKey),
+	};
 };
 
 export const createCertificate = async (
@@ -39,6 +47,8 @@ export const createCertificate = async (
 		.insert(certificates)
 		.values({
 			...certificateData,
+			// Encrypt the private key before storing
+			privateKey: encryptSecret(certificateData.privateKey),
 			organizationId: organizationId,
 		})
 		.returning();
@@ -52,9 +62,15 @@ export const createCertificate = async (
 
 	const cer = certificate[0];
 
-	createCertificateFiles(cer);
+	// Decrypt the private key for file creation
+	const cerWithDecryptedKey = {
+		...cer,
+		privateKey: decryptSecret(cer.privateKey),
+	};
 
-	return cer;
+	createCertificateFiles(cerWithDecryptedKey);
+
+	return cerWithDecryptedKey;
 };
 
 export const removeCertificateById = async (certificateId: string) => {
