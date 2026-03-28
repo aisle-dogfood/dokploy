@@ -1,6 +1,6 @@
 import { db } from "@dokploy/server/db";
 import { type apiCreateRedis, redis } from "@dokploy/server/db/schema";
-import { buildAppName } from "@dokploy/server/db/schema";
+import { buildAppName, hashPassword } from "@dokploy/server/db/schema";
 import { generatePassword } from "@dokploy/server/templates";
 import { buildRedis } from "@dokploy/server/utils/databases/redis";
 import { pullImage } from "@dokploy/server/utils/docker/utils";
@@ -24,13 +24,16 @@ export const createRedis = async (input: typeof apiCreateRedis._type) => {
 		});
 	}
 
+	const password = input.databasePassword
+		? input.databasePassword
+		: generatePassword();
+
 	const newRedis = await db
 		.insert(redis)
 		.values({
 			...input,
-			databasePassword: input.databasePassword
-				? input.databasePassword
-				: generatePassword(),
+			// Hash the password before storing
+			databasePassword: await hashPassword(password),
 			appName,
 		})
 		.returning()
@@ -69,11 +72,18 @@ export const updateRedisById = async (
 	redisData: Partial<Redis>,
 ) => {
 	const { appName, ...rest } = redisData;
+
+	// Prepare the update data
+	const updateData = { ...rest };
+
+	// Hash the password if it's being updated
+	if (updateData.databasePassword) {
+		updateData.databasePassword = await hashPassword(updateData.databasePassword);
+	}
+
 	const result = await db
 		.update(redis)
-		.set({
-			...rest,
-		})
+		.set(updateData)
 		.where(eq(redis.redisId, redisId))
 		.returning();
 

@@ -1,5 +1,6 @@
 import { db } from "@dokploy/server/db";
 import { type apiCreateSecurity, security } from "@dokploy/server/db/schema";
+import { hashPassword } from "@dokploy/server/db/schema/utils";
 import {
 	createSecurityMiddleware,
 	removeSecurityMiddleware,
@@ -34,6 +35,8 @@ export const createSecurity = async (
 				.insert(security)
 				.values({
 					...data,
+					// Hash the password before storing
+					password: await hashPassword(data.password),
 				})
 				.returning()
 				.then((res) => res[0]);
@@ -90,11 +93,17 @@ export const updateSecurityById = async (
 	data: Partial<Security>,
 ) => {
 	try {
+		// Prepare the update data
+		const updateData = { ...data };
+
+		// Hash the password if it's being updated
+		if (updateData.password) {
+			updateData.password = await hashPassword(updateData.password);
+		}
+
 		const response = await db
 			.update(security)
-			.set({
-				...data,
-			})
+			.set(updateData)
 			.where(eq(security.securityId, securityId))
 			.returning();
 

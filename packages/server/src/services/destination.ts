@@ -3,6 +3,10 @@ import {
 	type apiCreateDestination,
 	destinations,
 } from "@dokploy/server/db/schema";
+import {
+	decryptSecret,
+	encryptSecret,
+} from "@dokploy/server/db/schema/utils";
 import { TRPCError } from "@trpc/server";
 import { and, eq } from "drizzle-orm";
 
@@ -16,6 +20,8 @@ export const createDestintation = async (
 		.insert(destinations)
 		.values({
 			...input,
+			// Encrypt the secret access key before storing
+			secretAccessKey: encryptSecret(input.secretAccessKey),
 			organizationId: organizationId,
 		})
 		.returning()
@@ -41,7 +47,11 @@ export const findDestinationById = async (destinationId: string) => {
 			message: "Destination not found",
 		});
 	}
-	return destination;
+	// Decrypt the secret access key when reading
+	return {
+		...destination,
+		secretAccessKey: decryptSecret(destination.secretAccessKey),
+	};
 };
 
 export const removeDestinationById = async (
@@ -65,11 +75,17 @@ export const updateDestinationById = async (
 	destinationId: string,
 	destinationData: Partial<Destination>,
 ) => {
+	// Prepare the update data
+	const updateData = { ...destinationData };
+
+	// Encrypt the secret access key if it's being updated
+	if (updateData.secretAccessKey) {
+		updateData.secretAccessKey = encryptSecret(updateData.secretAccessKey);
+	}
+
 	const result = await db
 		.update(destinations)
-		.set({
-			...destinationData,
-		})
+		.set(updateData)
 		.where(
 			and(
 				eq(destinations.destinationId, destinationId),

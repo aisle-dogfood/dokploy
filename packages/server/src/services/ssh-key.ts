@@ -6,6 +6,10 @@ import {
 	type apiUpdateSshKey,
 	sshKeys,
 } from "@dokploy/server/db/schema";
+import {
+	decryptSecret,
+	encryptSecret,
+} from "@dokploy/server/db/schema/utils";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 
@@ -13,7 +17,11 @@ export const createSshKey = async (input: typeof apiCreateSshKey._type) => {
 	await db.transaction(async (tx) => {
 		const sshKey = await tx
 			.insert(sshKeys)
-			.values(input)
+			.values({
+				...input,
+				// Encrypt the private key before storing
+				privateKey: input.privateKey ? encryptSecret(input.privateKey) : "",
+			})
 			.returning()
 			.then((response) => response[0])
 			.catch((e) => console.error(e));
@@ -64,5 +72,9 @@ export const findSSHKeyById = async (
 			message: "SSH Key not found",
 		});
 	}
-	return sshKey;
+	// Decrypt the private key when reading
+	return {
+		...sshKey,
+		privateKey: sshKey.privateKey ? decryptSecret(sshKey.privateKey) : "",
+	};
 };

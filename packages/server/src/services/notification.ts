@@ -17,6 +17,11 @@ import {
 	slack,
 	telegram,
 } from "@dokploy/server/db/schema";
+import {
+	decryptSecret,
+	encryptSecret,
+	hashPassword,
+} from "@dokploy/server/db/schema/utils";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 
@@ -31,7 +36,8 @@ export const createSlackNotification = async (
 			.insert(slack)
 			.values({
 				channel: input.channel,
-				webhookUrl: input.webhookUrl,
+				// Encrypt webhook URL before storing
+				webhookUrl: encryptSecret(input.webhookUrl),
 			})
 			.returning()
 			.then((value) => value[0]);
@@ -98,12 +104,18 @@ export const updateSlackNotification = async (
 			});
 		}
 
+		const updateData: { channel?: string | null; webhookUrl?: string } = {
+			channel: input.channel,
+		};
+
+		// Only encrypt and update webhookUrl if provided
+		if (input.webhookUrl) {
+			updateData.webhookUrl = encryptSecret(input.webhookUrl);
+		}
+
 		await tx
 			.update(slack)
-			.set({
-				channel: input.channel,
-				webhookUrl: input.webhookUrl,
-			})
+			.set(updateData)
 			.where(eq(slack.slackId, input.slackId))
 			.returning()
 			.then((value) => value[0]);
@@ -120,7 +132,8 @@ export const createTelegramNotification = async (
 		const newTelegram = await tx
 			.insert(telegram)
 			.values({
-				botToken: input.botToken,
+				// Encrypt bot token before storing
+				botToken: encryptSecret(input.botToken),
 				chatId: input.chatId,
 				messageThreadId: input.messageThreadId,
 			})
@@ -189,13 +202,23 @@ export const updateTelegramNotification = async (
 			});
 		}
 
+		const updateData: {
+			botToken?: string;
+			chatId?: string;
+			messageThreadId?: string | null;
+		} = {
+			chatId: input.chatId,
+			messageThreadId: input.messageThreadId,
+		};
+
+		// Only encrypt and update botToken if provided
+		if (input.botToken) {
+			updateData.botToken = encryptSecret(input.botToken);
+		}
+
 		await tx
 			.update(telegram)
-			.set({
-				botToken: input.botToken,
-				chatId: input.chatId,
-				messageThreadId: input.messageThreadId,
-			})
+			.set(updateData)
 			.where(eq(telegram.telegramId, input.telegramId))
 			.returning()
 			.then((value) => value[0]);
@@ -212,7 +235,8 @@ export const createDiscordNotification = async (
 		const newDiscord = await tx
 			.insert(discord)
 			.values({
-				webhookUrl: input.webhookUrl,
+				// Encrypt webhook URL before storing
+				webhookUrl: encryptSecret(input.webhookUrl),
 				decoration: input.decoration,
 			})
 			.returning()
@@ -280,12 +304,18 @@ export const updateDiscordNotification = async (
 			});
 		}
 
+		const updateData: { webhookUrl?: string; decoration?: boolean | null } = {
+			decoration: input.decoration,
+		};
+
+		// Only encrypt and update webhookUrl if provided
+		if (input.webhookUrl) {
+			updateData.webhookUrl = encryptSecret(input.webhookUrl);
+		}
+
 		await tx
 			.update(discord)
-			.set({
-				webhookUrl: input.webhookUrl,
-				decoration: input.decoration,
-			})
+			.set(updateData)
 			.where(eq(discord.discordId, input.discordId))
 			.returning()
 			.then((value) => value[0]);
@@ -305,7 +335,8 @@ export const createEmailNotification = async (
 				smtpServer: input.smtpServer,
 				smtpPort: input.smtpPort,
 				username: input.username,
-				password: input.password,
+				// Hash password before storing
+				password: await hashPassword(input.password),
 				fromAddress: input.fromAddress,
 				toAddresses: input.toAddresses,
 			})
@@ -374,16 +405,29 @@ export const updateEmailNotification = async (
 			});
 		}
 
+		const updateData: {
+			smtpServer?: string;
+			smtpPort?: number;
+			username?: string;
+			password?: string;
+			fromAddress?: string;
+			toAddresses?: string[];
+		} = {
+			smtpServer: input.smtpServer,
+			smtpPort: input.smtpPort,
+			username: input.username,
+			fromAddress: input.fromAddress,
+			toAddresses: input.toAddresses,
+		};
+
+		// Only hash and update password if provided
+		if (input.password) {
+			updateData.password = await hashPassword(input.password);
+		}
+
 		await tx
 			.update(email)
-			.set({
-				smtpServer: input.smtpServer,
-				smtpPort: input.smtpPort,
-				username: input.username,
-				password: input.password,
-				fromAddress: input.fromAddress,
-				toAddresses: input.toAddresses,
-			})
+			.set(updateData)
 			.where(eq(email.emailId, input.emailId))
 			.returning()
 			.then((value) => value[0]);
@@ -401,7 +445,8 @@ export const createGotifyNotification = async (
 			.insert(gotify)
 			.values({
 				serverUrl: input.serverUrl,
-				appToken: input.appToken,
+				// Encrypt app token before storing
+				appToken: encryptSecret(input.appToken),
 				priority: input.priority,
 				decoration: input.decoration,
 			})
@@ -468,14 +513,25 @@ export const updateGotifyNotification = async (
 			});
 		}
 
+		const updateData: {
+			serverUrl?: string;
+			appToken?: string;
+			priority?: number;
+			decoration?: boolean | null;
+		} = {
+			serverUrl: input.serverUrl,
+			priority: input.priority,
+			decoration: input.decoration,
+		};
+
+		// Only encrypt and update appToken if provided
+		if (input.appToken) {
+			updateData.appToken = encryptSecret(input.appToken);
+		}
+
 		await tx
 			.update(gotify)
-			.set({
-				serverUrl: input.serverUrl,
-				appToken: input.appToken,
-				priority: input.priority,
-				decoration: input.decoration,
-			})
+			.set(updateData)
 			.where(eq(gotify.gotifyId, input.gotifyId));
 
 		return newDestination;
