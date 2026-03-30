@@ -1,5 +1,8 @@
 import type http from "node:http";
 import { IS_CLOUD, findServerById, validateRequest } from "@dokploy/server";
+import { db } from "@dokploy/server/db";
+import * as schema from "@dokploy/server/db/schema";
+import { and, eq } from "drizzle-orm";
 import { publicIpv4, publicIpv6 } from "public-ip";
 import { Client, type ConnectConfig } from "ssh2";
 import { WebSocketServer } from "ws";
@@ -73,15 +76,48 @@ export const setupTerminalWebSocketServer = (
 			return;
 		}
 
+		if (serverId !== "local" && !/^[A-Za-z0-9_-]{21}$/.test(serverId)) {
+			ws.close();
+			return;
+		}
+
+		const member = await db.query.member.findFirst({
+			where: and(
+				eq(schema.member.userId, user.id),
+				eq(schema.member.organizationId, session.activeOrganizationId || ""),
+			),
+		});
+
+		if (!member) {
+			ws.close();
+			return;
+		}
+
+		if (!member.canAccessToDocker && user.role !== "owner" && user.role !== "admin") {
+			ws.close();
+			return;
+		}
+
 		let connectionDetails: ConnectConfig = {};
 
 		const isLocalServer = serverId === "local";
 
 		if (isLocalServer && !IS_CLOUD) {
-			const port = Number(url.searchParams.get("port"));
+			const portParam = url.searchParams.get("port");
 			const username = url.searchParams.get("username");
 
-			if (!port || !username) {
+			if (!portParam || !username) {
+				ws.close();
+				return;
+			}
+
+			const port = Number(portParam);
+			if (isNaN(port) || port < 1 || port > 65535) {
+				ws.close();
+				return;
+			}
+
+			if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
 				ws.close();
 				return;
 			}
@@ -129,10 +165,16 @@ export const setupTerminalWebSocketServer = (
 				return;
 			}
 
+			if (server.organizationId !== session.activeOrganizationId) {
+				ws.close();
+				return;
+			}
+
 			const { ipAddress: host, port, username, sshKey, sshKeyId } = server;
 
 			if (!sshKeyId) {
-				throw new Error("No SSH key available for this server");
+				ws.close();
+				return;
 			}
 
 			connectionDetails = {
