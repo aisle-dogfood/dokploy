@@ -76,9 +76,15 @@ export const checkUserRepositoryPermissions = async (
 			permission: permission.permission,
 		};
 	} catch (error) {
-		// If user is not a collaborator, GitHub API returns 404
+		// If user is not a collaborator, GitHub API returns 404.
+		// Keep the first argument to console.warn as a constant format string and
+		// pass user-controlled values separately. This avoids format string
+		// injection in Node's util.format-style logging when values contain `%`.
 		console.warn(
-			`User ${username} is not a collaborator of ${owner}/${repo}:`,
+			"User %s is not a collaborator of %s/%s:",
+			username,
+			owner,
+			repo,
 			error,
 		);
 		return {
