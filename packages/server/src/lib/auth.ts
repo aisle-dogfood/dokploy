@@ -31,6 +31,10 @@ const { handler, api } = betterAuth({
 	},
 	...(!IS_CLOUD && {
 		async trustedOrigins() {
+			// In better-auth >=1.4, `trustedOrigins()` may be evaluated during initialization.
+			// Avoid hitting the database in unit tests where no Postgres is available.
+			if (process.env.NODE_ENV === "test") return [];
+
 			const admin = await db.query.member.findFirst({
 				where: eq(schema.member.role, "owner"),
 				with: {
